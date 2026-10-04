@@ -1,0 +1,5 @@
+node_modules
+dist
+sample-invoice.pdf
+*.log
+.DS_Store
