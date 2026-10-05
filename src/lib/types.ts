@@ -3,10 +3,22 @@ export type InvoiceFont = "sans" | "serif" | "mono";
 export type PaymentTerms = "receipt" | "net15" | "net30" | "net45" | "net60" | "custom";
 
 export interface Logo {
-  /** PNG data URL, normalised on upload so react-pdf can always embed it. */
+  /** PNG or JPEG data URL, normalised on upload so react-pdf can always embed it. */
   dataUrl: string;
   width: number;
   height: number;
+  /** Main colours found in the logo, darkest first. */
+  palette: string[];
+}
+
+/** The invoice's colour roles. */
+export interface BrandColors {
+  /** Title, totals, rules and (when dark enough) body text. */
+  primary: string;
+  /** Amount due and the start of the top band. */
+  accent: string;
+  /** Where the top band fades to. The same as accent gives a solid band. */
+  highlight: string;
 }
 
 export interface BusinessProfile {
@@ -16,7 +28,7 @@ export interface BusinessProfile {
   logoHeight: number;
   /** Hide the name when the logo already contains it (a wordmark). */
   showName: boolean;
-  accent: string;
+  colors: BrandColors;
   font: InvoiceFont;
   address: string;
   email: string;
@@ -75,7 +87,7 @@ export interface Settings {
 }
 
 export interface AppState {
-  version: 1;
+  version: 2;
   profile: BusinessProfile;
   settings: Settings;
   invoice: Invoice;

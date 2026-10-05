@@ -1,5 +1,6 @@
+import { isHexColor } from "./color";
 import { dueDateFor, todayIso } from "./dates";
-import type { AppState, BusinessProfile, Client, Invoice, LineItem, Settings, TaxLine } from "./types";
+import type { AppState, BrandColors, BusinessProfile, Client, Invoice, LineItem, Logo, Settings, TaxLine } from "./types";
 
 export function newId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -64,14 +65,26 @@ export function taxesFromPreset(preset: TaxPreset): TaxLine[] {
   return preset.taxes.map((t) => ({ id: newId(), ...t }));
 }
 
-export const ACCENTS = ["#23395B", "#1E6B52", "#7A2E3A", "#B4531A", "#5B3E8C", "#2A2F36"];
+/** Offered when there is no logo to take colours from. */
+export const PRESET_COLORS = ["#2A2F36", "#1B2A4A", "#23395B", "#1E6B52", "#7A2E3A", "#B4531A", "#5B3E8C"];
+
+/** Neutral charcoal, so any logo's colours can replace it. */
+export const NEUTRAL_COLORS = { primary: "#2A2F36", accent: "#2A2F36", highlight: "#2A2F36" };
+
+/** Logo height in points for a newly uploaded logo: stacked or square logos need more height than wide wordmarks. */
+export function logoHeightFor(width: number, height: number): number {
+  const ratio = width / Math.max(1, height);
+  if (ratio < 1.5) return 80;
+  if (ratio < 3) return 60;
+  return 44;
+}
 
 export const defaultProfile: BusinessProfile = {
-  name: "Abstraction Software Development",
+  name: "",
   logo: null,
-  logoHeight: 44,
+  logoHeight: 56,
   showName: true,
-  accent: ACCENTS[0],
+  colors: { ...NEUTRAL_COLORS },
   font: "sans",
   address: "",
   email: "",
@@ -114,12 +127,12 @@ export function newInvoice(profile: BusinessProfile, settings: Settings, previou
 }
 
 /** A fresh first-run state: invoice #1 is in use, so the counter moves to 2. */
-export function initialState(): AppState {
+export function initialState(defaults: BusinessProfile = defaultProfile): AppState {
   const settings = { ...defaultSettings };
-  const invoice = newInvoice(defaultProfile, settings);
+  const invoice = newInvoice(defaults, settings);
   return {
-    version: 1,
-    profile: { ...defaultProfile },
+    version: 2,
+    profile: { ...defaults },
     settings: { ...settings, nextNumber: settings.nextNumber + 1 },
     invoice,
     clients: [],
@@ -130,11 +143,40 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** Fills in anything missing from a saved file, so older saves keep loading. */
-export function hydrate(raw: unknown): AppState {
-  const base = initialState();
+function hydrateColors(raw: unknown, fallback: BrandColors): BrandColors {
+  const colors = isObject(raw) ? raw : {};
+  const pick = (key: keyof BrandColors, backup: string) =>
+    typeof colors[key] === "string" && isHexColor(colors[key] as string) ? (colors[key] as string) : backup;
+  const primary = pick("primary", fallback.primary);
+  const accent = pick("accent", fallback.accent);
+  return { primary, accent, highlight: pick("highlight", accent) };
+}
+
+function hydrateLogo(raw: unknown): Logo | null {
+  if (!isObject(raw) || typeof raw.dataUrl !== "string") return null;
+  return {
+    dataUrl: raw.dataUrl,
+    width: Number(raw.width) || 1,
+    height: Number(raw.height) || 1,
+    palette: Array.isArray(raw.palette) ? raw.palette.filter((c): c is string => typeof c === "string" && isHexColor(c)) : [],
+  };
+}
+
+/**
+ * Fills in anything missing from a saved file, so older saves keep loading.
+ * Version 1 had one brand colour (`accent`); it becomes all three colour roles.
+ */
+export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile): AppState {
+  const base = initialState(defaults);
   if (!isObject(raw)) return base;
-  const profile = { ...base.profile, ...(isObject(raw.profile) ? raw.profile : {}) } as BusinessProfile;
+  const rawProfile = isObject(raw.profile) ? raw.profile : {};
+  const { accent: v1Accent, colors: rawColors, logo: rawLogo, ...rest } = rawProfile;
+  let profile = { ...base.profile, ...rest, logo: hydrateLogo(rawLogo) } as BusinessProfile;
+  if (raw.version !== 2 && typeof v1Accent === "string") {
+    profile = { ...profile, colors: hydrateColors({ primary: v1Accent, accent: v1Accent }, defaults.colors) };
+  } else {
+    profile.colors = hydrateColors(rawColors, defaults.colors);
+  }
   const settings = { ...base.settings, ...(isObject(raw.settings) ? raw.settings : {}) } as Settings;
   const rawInvoice = isObject(raw.invoice) ? raw.invoice : {};
   const invoice = {
@@ -151,7 +193,7 @@ export function hydrate(raw: unknown): AppState {
   const clients = Array.isArray(raw.clients)
     ? (raw.clients.filter(isObject).map((c) => ({ ...emptyClient(), ...c })) as Client[])
     : [];
-  return { version: 1, profile, settings, invoice, clients };
+  return { version: 2, profile, settings, invoice, clients };
 }
 
 /** Adds or refreshes a client in the saved list, matched by name. Most recent first. */

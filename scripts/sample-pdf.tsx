@@ -1,14 +1,15 @@
 /**
  * Renders a sample invoice to sample-invoice.pdf without the app, for checking
  * layout changes quickly:
- *   npm run sample-pdf -- --logo=logo.png --font=serif --size=A4 --items=30
+ *   npm run sample-pdf -- --logo=logo.png --colors=#01183F,#015CE7,#08E9FC
+ *   npm run sample-pdf -- --font=serif --size=A4 --items=30
  */
 import { renderToFile } from "@react-pdf/renderer";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { FONT_FILES, registerInvoiceFonts } from "../src/pdf/fonts";
 import { InvoiceDocument } from "../src/pdf/InvoiceDocument";
-import { defaultProfile, newId } from "../src/lib/state";
+import { defaultProfile, logoHeightFor, newId } from "../src/lib/state";
 import type { BusinessProfile, Invoice, InvoiceFont, PageSize } from "../src/lib/types";
 
 const fontDir = fileURLToPath(new URL("../src/assets/fonts/", import.meta.url));
@@ -31,6 +32,8 @@ const args = Object.fromEntries(
     .map((m) => [m[1], m[2]]),
 );
 const logoPath = args.logo;
+// Logo colours are extracted in the app; here they are passed in as primary,accent,highlight.
+const [primary, accent, highlight] = (args.colors ?? "").split(",").filter(Boolean);
 const font = args.font ?? "sans";
 const size = (args.size ?? "LETTER").toUpperCase();
 const extraItems = Number(args.items ?? 0);
@@ -42,14 +45,19 @@ function pngSize(buf: Buffer) {
 const logo = logoPath
   ? (() => {
       const buf = readFileSync(logoPath);
-      return { dataUrl: `data:image/png;base64,${buf.toString("base64")}`, ...pngSize(buf) };
+      return { dataUrl: `data:image/png;base64,${buf.toString("base64")}`, ...pngSize(buf), palette: [] };
     })()
   : null;
 
 const profile: BusinessProfile = {
   ...defaultProfile,
   logo,
-  showName: true,
+  name: "Northwind Consulting",
+  logoHeight: Number(args.logoHeight ?? (logo ? logoHeightFor(logo.width, logo.height) : defaultProfile.logoHeight)),
+  showName: logo ? args.showName === "true" : true,
+  colors: primary
+    ? { primary, accent: accent ?? primary, highlight: highlight ?? accent ?? primary }
+    : defaultProfile.colors,
   font: font as InvoiceFont,
   address: "10230 Jasper Ave NW, Suite 400\nEdmonton, AB  T5J 4P6",
   email: "billing@example.com",
@@ -79,7 +87,7 @@ const invoice: Invoice = {
     { id: newId(), description: "Reimbursed stock photography licence", detail: "Billed at cost", quantity: "1", unitPrice: "59.99", taxable: false },
   ],
   taxes: [{ id: newId(), label: "GST", rate: "5" }],
-  notes: "Please pay by Interac e-Transfer to billing@example.com, or by cheque payable to Abstraction Software Development.\nInvoices unpaid after 30 days accrue interest at 1.5% per month.",
+  notes: "Please pay by Interac e-Transfer to billing@example.com, or by cheque payable to Northwind Consulting.\nInvoices unpaid after 30 days accrue interest at 1.5% per month.",
 };
 
 for (let i = 1; i <= extraItems; i++) {

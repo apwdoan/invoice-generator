@@ -1,14 +1,13 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Defs, Document, Image, LinearGradient, Page, Rect, Stop, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import type { ComponentProps } from "react";
-import { mix, readableOnWhite } from "../lib/color";
 import { formatDate, termsLabel } from "../lib/dates";
 import { billableItems, computeTotals, formatMoney, formatQuantity, formatRate, lineCents, parseAmount, roundCents } from "../lib/money";
 import type { BusinessProfile, Invoice, PageSize } from "../lib/types";
 import { FONT_FAMILY } from "./fonts";
+import { invoiceTheme } from "./theme";
 
-const INK = "#1B2129";
-const MUTED = "#69727D";
-const HAIRLINE = "#E1E4E8";
+const PAGE_WIDTH: Record<PageSize, number> = { LETTER: 612, A4: 595.28 };
+const BAND_HEIGHT = 7;
 
 const COL_QTY = 50;
 const COL_RATE = 80;
@@ -61,9 +60,29 @@ function logoBox(profile: BusinessProfile): { width: number; height: number } | 
   return { width, height };
 }
 
+/** Full-width band across the top of every page; a left-to-right gradient when there are two stops. */
+function Band({ stops, width }: { stops: string[]; width: number }) {
+  if (stops.length === 1) {
+    return <View fixed style={{ position: "absolute", top: 0, left: 0, right: 0, height: BAND_HEIGHT, backgroundColor: stops[0] }} />;
+  }
+  return (
+    <View fixed style={{ position: "absolute", top: 0, left: 0, right: 0, height: BAND_HEIGHT }}>
+      <Svg width={width} height={BAND_HEIGHT} viewBox={`0 0 ${width} ${BAND_HEIGHT}`}>
+        <Defs>
+          <LinearGradient id="band" x1="0" y1="0" x2="1" y2="0">
+            {stops.map((color, i) => (
+              <Stop key={color + i} offset={i / (stops.length - 1)} stopColor={color} />
+            ))}
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width={width} height={BAND_HEIGHT} fill="url(#band)" />
+      </Svg>
+    </View>
+  );
+}
+
 export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentProps) {
-  const accent = readableOnWhite(profile.accent);
-  const tint = mix(profile.accent, "#ffffff", 0.91);
+  const theme = invoiceTheme(profile.colors);
   const family = FONT_FAMILY[profile.font] ?? FONT_FAMILY.sans;
   const items = billableItems(invoice.items);
   const totals = computeTotals(invoice);
@@ -72,26 +91,30 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
   const client = invoice.client;
   const taxNames = totals.taxes.map((t) => t.tax.label.trim()).filter(Boolean).join("/");
   const showName = profile.name.trim() !== "" && (profile.showName || !logo);
+  const beside = logo !== null && profile.logo !== null && profile.logo.width / profile.logo.height < 2;
 
   const s = StyleSheet.create({
     page: {
       fontFamily: family,
-      color: INK,
+      color: theme.ink,
       paddingTop: 46,
       paddingBottom: 72,
       paddingHorizontal: 52,
     },
 
-    accentBar: { position: "absolute", top: 0, left: 0, right: 0, height: 6, backgroundColor: profile.accent },
     header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
     from: { maxWidth: "60%" },
-    logo: { marginBottom: 8, objectFit: "contain" },
-    businessName: { fontSize: 14, fontWeight: 600, lineHeight: 1.25, marginBottom: 6 },
-    muted: { color: MUTED },
+    // Square or stacked logos sit beside the contact details instead of above them, saving height.
+    fromBeside: { maxWidth: "72%", flexDirection: "row", alignItems: "flex-start" },
+    logo: { marginBottom: 12, objectFit: "contain" },
+    logoBeside: { marginRight: 22, objectFit: "contain" },
+    contactBeside: { paddingTop: 3 },
+    businessName: { fontSize: 14, fontWeight: 600, lineHeight: 1.25, marginBottom: 6, color: theme.primary },
+    muted: { color: theme.muted },
     small: { fontSize: 8.5 },
     registration: { marginTop: 6, fontSize: 8.5 },
     titleBlock: { alignItems: "flex-end", paddingTop: 2 },
-    title: { fontSize: 28, fontWeight: 600, color: accent, letterSpacing: -0.6, lineHeight: 1.1 },
+    title: { fontSize: 28, fontWeight: 600, color: theme.primary, letterSpacing: -0.6, lineHeight: 1.1 },
     number: { fontSize: 10.5, marginTop: 4 },
     summary: {
       flexDirection: "row",
@@ -99,38 +122,38 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
       paddingVertical: 13,
       borderTopWidth: 1,
       borderBottomWidth: 1,
-      borderColor: HAIRLINE,
+      borderColor: theme.hairline,
     },
-    label: { fontSize: 8, color: MUTED, marginBottom: 3 },
+    label: { fontSize: 8, color: theme.muted, marginBottom: 3 },
     billTo: { flex: 1.7, paddingRight: 18 },
-    clientName: { fontWeight: 600, fontSize: 10.5 },
+    clientName: { fontWeight: 600, fontSize: 10.5, color: theme.primary },
     dates: { flex: 1, paddingRight: 12 },
     due: {
       flex: 1.2,
       alignItems: "flex-end",
-      backgroundColor: tint,
+      backgroundColor: theme.accentWash,
       paddingVertical: 10,
       paddingHorizontal: 12,
       marginVertical: -4,
       borderRadius: 3,
     },
-    dueAmount: { fontSize: 17, fontWeight: 600, color: accent, lineHeight: 1.2 },
+    dueAmount: { fontSize: 17, fontWeight: 600, color: theme.accentText, lineHeight: 1.2 },
     table: { marginTop: 22 },
     thead: {
       flexDirection: "row",
       paddingBottom: 6,
       borderBottomWidth: 1.25,
-      borderColor: accent,
+      borderColor: theme.primary,
     },
-    th: { fontSize: 8, color: MUTED },
-    row: { flexDirection: "row", paddingVertical: 7, borderBottomWidth: 0.75, borderColor: HAIRLINE },
+    th: { fontSize: 8, color: theme.muted },
+    row: { flexDirection: "row", paddingVertical: 7, borderBottomWidth: 0.75, borderColor: theme.hairline },
     desc: { flex: 1, paddingRight: 12 },
-    detail: { color: MUTED, fontSize: 8.5, marginTop: 1 },
-    note: { color: MUTED, fontSize: 7.5, marginTop: 2, fontStyle: "italic" },
+    detail: { color: theme.muted, fontSize: 8.5, marginTop: 1 },
+    note: { color: theme.muted, fontSize: 7.5, marginTop: 2, fontStyle: "italic" },
     qty: { width: COL_QTY, textAlign: "right" },
     rate: { width: COL_RATE, textAlign: "right" },
     amount: { width: COL_AMOUNT, textAlign: "right" },
-    empty: { paddingVertical: 14, color: MUTED, fontStyle: "italic" },
+    empty: { paddingVertical: 14, color: theme.muted, fontStyle: "italic" },
     totals: { marginTop: 12, marginLeft: "auto", width: 236 },
     totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
     grandTotal: {
@@ -140,10 +163,10 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
       marginTop: 6,
       paddingTop: 8,
       borderTopWidth: 1.25,
-      borderColor: accent,
+      borderColor: theme.primary,
     },
-    grandLabel: { fontWeight: 600, fontSize: 10.5 },
-    grandAmount: { fontWeight: 600, fontSize: 13 },
+    grandLabel: { fontWeight: 600, fontSize: 10.5, color: theme.primary },
+    grandAmount: { fontWeight: 600, fontSize: 13, color: theme.primary },
     notes: { marginTop: 26, maxWidth: "75%" },
     footer: {
       position: "absolute",
@@ -154,9 +177,9 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
       justifyContent: "space-between",
       paddingTop: 8,
       borderTopWidth: 0.75,
-      borderColor: HAIRLINE,
+      borderColor: theme.hairline,
     },
-    footerText: { fontSize: 8, color: MUTED },
+    footerText: { fontSize: 8, color: theme.muted },
   });
 
   return (
@@ -168,11 +191,12 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
       producer="Invoice Generator"
     >
       <Page size={pageSize} style={s.page}>
-        <View fixed style={s.accentBar} />
+        <Band stops={theme.band} width={PAGE_WIDTH[pageSize] ?? 612} />
 
         <View style={s.header}>
-          <View style={s.from}>
-            {logo && profile.logo && <Image src={profile.logo.dataUrl} style={[s.logo, logo]} />}
+          <View style={beside ? s.fromBeside : s.from}>
+            {logo && profile.logo && <Image src={profile.logo.dataUrl} style={[beside ? s.logoBeside : s.logo, logo]} />}
+            <View style={beside ? s.contactBeside : {}}>
             {showName && <T style={s.businessName}>{profile.name}</T>}
             {lines(profile.address).map((line, i) => (
               <T key={`a${i}`} style={s.muted}>
@@ -199,6 +223,7 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
                 {profile.extraTaxNumber.trim()}
               </T>
             )}
+            </View>
           </View>
 
           <View style={s.titleBlock}>
@@ -281,7 +306,9 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
 
         {invoice.notes.trim() !== "" && (
           <View style={s.notes}>
-            <T style={s.label}>Notes</T>
+            <T style={s.label} minPresenceAhead={36}>
+              Notes
+            </T>
             <T>{invoice.notes.trim()}</T>
           </View>
         )}

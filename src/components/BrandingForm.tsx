@@ -1,9 +1,10 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useId, useRef, useState, type DragEvent } from "react";
 import { contrastWithWhite, isHexColor } from "../lib/color";
 import { readLogo } from "../lib/logo";
+import { paletteFromImage, suggestColors } from "../lib/palette";
 import { checkGstNumber, formatGstNumber, looksLikeGstLabel } from "../lib/registration";
-import { ACCENTS, formatInvoiceNumber } from "../lib/state";
-import type { BusinessProfile, InvoiceFont, Settings } from "../lib/types";
+import { formatInvoiceNumber, logoHeightFor, NEUTRAL_COLORS, PRESET_COLORS } from "../lib/state";
+import type { BrandColors, BusinessProfile, InvoiceFont, Settings } from "../lib/types";
 import { Checkbox, Section, TextArea, TextField } from "./fields";
 
 interface Props {
@@ -33,6 +34,14 @@ function gstHint(profile: BusinessProfile): { text: string; tone: "neutral" | "g
   }
 }
 
+function sameColor(a: string, b: string): boolean {
+  return a.toLowerCase() === b.toLowerCase();
+}
+
+function sameColors(a: BrandColors, b: BrandColors): boolean {
+  return sameColor(a.primary, b.primary) && sameColor(a.accent, b.accent) && sameColor(a.highlight, b.highlight);
+}
+
 function LogoPicker({ profile, onProfile }: Pick<Props, "profile" | "onProfile">) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +51,23 @@ function LogoPicker({ profile, onProfile }: Pick<Props, "profile" | "onProfile">
     if (!file) return;
     setError(null);
     try {
-      onProfile({ logo: await readLogo(file) });
+      const logo = await readLogo(file);
+      // A new logo brings its own colours and a height suited to its shape.
+      onProfile({
+        logo,
+        logoHeight: logoHeightFor(logo.width, logo.height),
+        ...(logo.palette.length ? { colors: suggestColors(logo.palette, profile.colors) } : {}),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+  };
+
+  /** Removing the logo also drops its colours, unless they were changed by hand afterwards. */
+  const removeLogo = () => {
+    const palette = profile.logo?.palette ?? [];
+    const fromLogo = palette.length > 0 && sameColors(suggestColors(palette, profile.colors), profile.colors);
+    onProfile({ logo: null, ...(fromLogo ? { colors: { ...NEUTRAL_COLORS } } : {}) });
   };
 
   const onDrop = (e: DragEvent) => {
@@ -69,14 +91,14 @@ function LogoPicker({ profile, onProfile }: Pick<Props, "profile" | "onProfile">
         {profile.logo ? (
           <img src={profile.logo.dataUrl} alt="Your logo" />
         ) : (
-          <p>Drop an image here, or choose a file. PNG, JPG and SVG all work; transparent edges are trimmed.</p>
+          <p>Drop your logo here or choose a file (PNG, JPG or SVG). The invoice takes its colours from it.</p>
         )}
         <div className="logo-actions">
           <button type="button" className="button" onClick={() => input.current?.click()}>
             {profile.logo ? "Replace logo" : "Choose logo"}
           </button>
           {profile.logo && (
-            <button type="button" className="text-button" onClick={() => onProfile({ logo: null })}>
+            <button type="button" className="text-button" onClick={removeLogo}>
               Remove
             </button>
           )}
@@ -97,9 +119,136 @@ function LogoPicker({ profile, onProfile }: Pick<Props, "profile" | "onProfile">
   );
 }
 
+function ColorRow({
+  label,
+  hint,
+  value,
+  swatches,
+  minContrast,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  swatches: string[];
+  /** When set, warns that a paler colour will be darkened for text. */
+  minContrast?: number;
+  onChange: (color: string) => void;
+}) {
+  const id = useId();
+  const darkened = minContrast !== undefined && isHexColor(value) && contrastWithWhite(value) < minContrast;
+  return (
+    <div className="color-row">
+      <p className="color-row-head">
+        <span className="label" id={`${id}-label`}>
+          {label}
+        </span>
+        <span className="hint">{hint}</span>
+      </p>
+      <div className="swatches" role="radiogroup" aria-labelledby={`${id}-label`}>
+        {swatches.map((c) => (
+          <button
+            key={c}
+            type="button"
+            role="radio"
+            aria-checked={sameColor(value, c)}
+            aria-label={c}
+            title={c}
+            className="swatch"
+            style={{ background: c }}
+            onClick={() => onChange(c)}
+          />
+        ))}
+        <label className="swatch swatch-custom" title="Pick any colour">
+          <input
+            type="color"
+            aria-label={`Custom ${label.toLowerCase()} colour`}
+            value={isHexColor(value) ? value.toLowerCase() : "#23395b"}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
+          />
+        </label>
+        <input
+          className="hex-input"
+          aria-label={`${label} colour hex code`}
+          value={value}
+          maxLength={7}
+          spellCheck={false}
+          onChange={(e) => onChange(e.target.value.startsWith("#") ? e.target.value : `#${e.target.value}`)}
+        />
+      </div>
+      {darkened && <p className="hint">Text in this colour is darkened slightly so it stays readable on white.</p>}
+    </div>
+  );
+}
+
+function ColorsSection({ profile, onProfile }: Pick<Props, "profile" | "onProfile">) {
+  const logo = profile.logo;
+  const palette = logo?.palette ?? [];
+
+  // Logos saved before colour extraction existed get their palette on first view.
+  useEffect(() => {
+    if (!logo || logo.palette.length) return;
+    let cancelled = false;
+    paletteFromImage(logo.dataUrl)
+      .then((found) => !cancelled && found.length > 0 && onProfile({ logo: { ...logo, palette: found } }))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [logo, onProfile]);
+
+  const suggested = palette.length ? suggestColors(palette, profile.colors) : null;
+  const swatches = palette.length ? palette : PRESET_COLORS;
+  const setColor = (role: keyof BrandColors) => (color: string) => onProfile({ colors: { ...profile.colors, [role]: color } });
+
+  return (
+    <Section title="Colours">
+      {!logo && <p className="hint">Upload a logo and these are filled in from its colours. You can also pick them yourself.</p>}
+      {suggested && (
+        <div className="logo-palette">
+          <div className="logo-palette-swatches" aria-hidden="true">
+            {palette.map((c) => (
+              <span key={c} style={{ background: c }} />
+            ))}
+          </div>
+          {sameColors(suggested, profile.colors) ? (
+            <span className="hint">Using your logo’s colours</span>
+          ) : (
+            <button type="button" className="button" onClick={() => onProfile({ colors: suggested })}>
+              Use logo colours
+            </button>
+          )}
+        </div>
+      )}
+      <ColorRow
+        label="Main"
+        hint="Title, totals and lines"
+        value={profile.colors.primary}
+        swatches={swatches}
+        minContrast={7}
+        onChange={setColor("primary")}
+      />
+      <ColorRow
+        label="Accent"
+        hint="Amount due and the top band"
+        value={profile.colors.accent}
+        swatches={swatches}
+        minContrast={4.5}
+        onChange={setColor("accent")}
+      />
+      <ColorRow
+        label="Highlight"
+        hint="Where the top band fades to. Match the accent for a solid band."
+        value={profile.colors.highlight}
+        swatches={swatches}
+        onChange={setColor("highlight")}
+      />
+    </Section>
+  );
+}
+
 export function BrandingForm({ profile, settings, onProfile, onSettings }: Props) {
   const hint = gstHint(profile);
-  const paleAccent = isHexColor(profile.accent) && contrastWithWhite(profile.accent) < 4.5;
 
   return (
     <>
@@ -113,7 +262,7 @@ export function BrandingForm({ profile, settings, onProfile, onSettings }: Props
                 id="logo-size"
                 type="range"
                 min={24}
-                max={96}
+                max={120}
                 step={2}
                 value={profile.logoHeight}
                 onChange={(e) => onProfile({ logoHeight: Number(e.target.value) })}
@@ -126,8 +275,15 @@ export function BrandingForm({ profile, settings, onProfile, onSettings }: Props
             />
           </div>
         )}
-        <TextField label="Business name" value={profile.name} onChange={(name) => onProfile({ name })} />
+        <TextField
+          label="Business name"
+          placeholder="Your business name"
+          value={profile.name}
+          onChange={(name) => onProfile({ name })}
+        />
       </Section>
+
+      <ColorsSection profile={profile} onProfile={onProfile} />
 
       <Section title="Contact details">
         <TextArea label="Address" rows={3} value={profile.address} onChange={(address) => onProfile({ address })} />
@@ -172,49 +328,8 @@ export function BrandingForm({ profile, settings, onProfile, onSettings }: Props
         </div>
       </Section>
 
-      <Section title="Look">
+      <Section title="Typeface">
         <div className="field">
-          <span className="label">Brand colour</span>
-          <div className="swatches" role="radiogroup" aria-label="Brand colour">
-            {ACCENTS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                role="radio"
-                aria-checked={profile.accent.toLowerCase() === c.toLowerCase()}
-                aria-label={c}
-                className="swatch"
-                style={{ background: c }}
-                onClick={() => onProfile({ accent: c })}
-              />
-            ))}
-            <label className="swatch swatch-custom" title="Pick any colour">
-              <input
-                type="color"
-                aria-label="Custom brand colour"
-                value={isHexColor(profile.accent) ? profile.accent : "#23395b"}
-                onChange={(e) => onProfile({ accent: e.target.value })}
-              />
-            </label>
-            <input
-              className="hex-input"
-              aria-label="Brand colour hex code"
-              value={profile.accent}
-              maxLength={7}
-              spellCheck={false}
-              onChange={(e) => {
-                const v = e.target.value.startsWith("#") ? e.target.value : `#${e.target.value}`;
-                onProfile({ accent: v });
-              }}
-            />
-          </div>
-          {paleAccent && (
-            <p className="hint">This colour is light, so text that uses it is darkened slightly to stay readable.</p>
-          )}
-        </div>
-
-        <div className="field">
-          <span className="label">Typeface</span>
           <div className="font-options" role="radiogroup" aria-label="Typeface">
             {FONTS.map((f) => (
               <button
