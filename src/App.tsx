@@ -3,13 +3,17 @@ import { BrandingForm } from "./components/BrandingForm";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { InvoiceForm } from "./components/InvoiceForm";
 import { PdfPreview } from "./components/PdfPreview";
+import { TaxForm } from "./components/TaxForm";
+import { TaxSummary } from "./components/TaxSummary";
 import { computeTotals, formatMoney } from "./lib/money";
 import { exportPdf, fileNameOf, inDesktopApp, loadState, openExported, revealExported, safeFileName, saveState } from "./lib/native";
 import { hydrate, initialState, newInvoice, rememberClient } from "./lib/state";
-import type { AppState, BusinessProfile, Invoice, PageSize, Settings } from "./lib/types";
+import { TAX_YEARS } from "./lib/taxRates";
+import { estimateFor } from "./lib/taxSettings";
+import type { AppState, BusinessProfile, Invoice, PageSize, Settings, TaxSettings } from "./lib/types";
 import { renderInvoicePdf } from "./pdf/render";
 
-type Tab = "invoice" | "branding";
+type Tab = "invoice" | "branding" | "tax";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type Notice = { kind: "exported"; path: string } | { kind: "error"; message: string };
 
@@ -87,9 +91,15 @@ export default function App() {
     (patch: Partial<Settings>) => setState((s) => (s ? { ...s, settings: { ...s.settings, ...patch } } : s)),
     [],
   );
+  const updateTax = useCallback(
+    (patch: Partial<TaxSettings>) => setState((s) => (s ? { ...s, tax: { ...s.tax, ...patch } } : s)),
+    [],
+  );
   const onPreviewError = useCallback((message: string) => setPreviewError(message), []);
 
   const totals = useMemo(() => (invoice ? computeTotals(invoice) : null), [invoice]);
+  const taxSettings = state?.tax;
+  const estimate = useMemo(() => (taxSettings ? estimateFor(taxSettings) : null), [taxSettings]);
 
   const handleExport = useCallback(async () => {
     if (!state || exporting) return;
@@ -145,7 +155,7 @@ export default function App() {
     editorScroll.current?.scrollTo({ top: 0 });
   };
 
-  if (!state || !totals) {
+  if (!state || !totals || !estimate) {
     return <div className="loading">Opening your invoices</div>;
   }
 
@@ -194,9 +204,14 @@ export default function App() {
             <button type="button" role="tab" aria-selected={tab === "branding"} onClick={() => setTab("branding")}>
               Branding
             </button>
+            <button type="button" role="tab" aria-selected={tab === "tax"} onClick={() => setTab("tax")}>
+              Tax estimate
+            </button>
           </div>
           <div className="editor-scroll" ref={editorScroll}>
-            {tab === "invoice" ? (
+            {tab === "tax" ? (
+              <TaxForm settings={state.tax} estimate={estimate} onChange={updateTax} />
+            ) : tab === "invoice" ? (
               <InvoiceForm
                 invoice={state.invoice}
                 clients={state.clients}
@@ -226,27 +241,40 @@ export default function App() {
           </div>
         </aside>
 
-        <section className="desk" aria-label="Preview">
-          <div className="desk-toolbar">
-            <span className="page-count">
-              {pageCount} {pageCount === 1 ? "page" : "pages"}
-            </span>
-            <div className="segmented" role="radiogroup" aria-label="Paper size">
-              {(["LETTER", "A4"] as PageSize[]).map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  role="radio"
-                  aria-checked={state.settings.pageSize === size}
-                  onClick={() => updateSettings({ pageSize: size })}
-                >
-                  {size === "LETTER" ? "Letter" : "A4"}
-                </button>
-              ))}
+        <section className="desk" aria-label={tab === "tax" ? "Tax estimate" : "Preview"}>
+          {tab === "tax" && (
+            <div className="desk-view">
+              <div className="desk-toolbar">
+                <span className="page-count">
+                  {estimate.year} estimate for {TAX_YEARS[estimate.year].provinces[estimate.province].name}
+                </span>
+              </div>
+              <TaxSummary estimate={estimate} invoice={state.invoice} totals={totals} />
             </div>
+          )}
+          {/* Kept mounted while hidden, so the preview is already drawn when you come back. */}
+          <div className="desk-view" hidden={tab === "tax"}>
+            <div className="desk-toolbar">
+              <span className="page-count">
+                {pageCount} {pageCount === 1 ? "page" : "pages"}
+              </span>
+              <div className="segmented" role="radiogroup" aria-label="Paper size">
+                {(["LETTER", "A4"] as PageSize[]).map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    role="radio"
+                    aria-checked={state.settings.pageSize === size}
+                    onClick={() => updateSettings({ pageSize: size })}
+                  >
+                    {size === "LETTER" ? "Letter" : "A4"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {previewError && <p className="preview-error">The preview could not be drawn: {previewError}</p>}
+            <PdfPreview bytes={previewBytes} onPageCount={setPageCount} onError={onPreviewError} />
           </div>
-          {previewError && <p className="preview-error">The preview could not be drawn: {previewError}</p>}
-          <PdfPreview bytes={previewBytes} onPageCount={setPageCount} onError={onPreviewError} />
 
           {notice && (
             <div className={`notice notice-${notice.kind}`} role="status">

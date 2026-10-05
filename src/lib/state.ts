@@ -1,6 +1,19 @@
 import { isHexColor } from "./color";
 import { dueDateFor, todayIso } from "./dates";
-import type { AppState, BrandColors, BusinessProfile, Client, Invoice, LineItem, Logo, Settings, TaxLine } from "./types";
+import { computeTotals } from "./money";
+import { LATEST_TAX_YEAR, PROVINCE_ORDER, TAX_YEARS, type ProvinceCode } from "./taxRates";
+import type {
+  AppState,
+  BrandColors,
+  BusinessProfile,
+  Client,
+  Invoice,
+  LineItem,
+  Logo,
+  Settings,
+  TaxLine,
+  TaxSettings,
+} from "./types";
 
 export function newId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -126,6 +139,67 @@ export function newInvoice(profile: BusinessProfile, settings: Settings, previou
   };
 }
 
+/** Where a tax preset most likely puts the business. Shared rates (GST only, 15% HST) pick the largest province. */
+const PRESET_PROVINCE: Record<string, ProvinceCode> = {
+  gst: "AB",
+  hst13: "ON",
+  hst14: "NS",
+  hst15: "NB",
+  bc: "BC",
+  mb: "MB",
+  sk: "SK",
+  qc: "QC",
+};
+
+/** Guesses the province from the taxes on an invoice, for a first look at the tax estimate. */
+export function provinceFromTaxes(taxes: TaxLine[]): ProvinceCode {
+  const key = (list: { label: string; rate: string }[]) =>
+    list.map((t) => `${t.label.trim().toUpperCase()}:${Number(t.rate)}`).join("|");
+  const preset = TAX_PRESETS.find((p) => key(p.taxes) === key(taxes));
+  return (preset && PRESET_PROVINCE[preset.id]) || "AB";
+}
+
+export function defaultTaxSettings(invoice?: Invoice, profile?: BusinessProfile): TaxSettings {
+  // Registered if a GST/HST number is set up, or the current invoice actually charges GST/HST.
+  const chargesTax = invoice
+    ? computeTotals(invoice).taxes.some((t) => /^(GST|HST)$/i.test(t.tax.label.trim()) && t.cents > 0)
+    : false;
+  return {
+    year: LATEST_TAX_YEAR,
+    province: invoice ? provinceFromTaxes(invoice.taxes) : "AB",
+    revenue: "",
+    expenses: "",
+    employmentIncome: "",
+    taxDeductedAtWork: "",
+    rrsp: "",
+    instalmentsPaid: "",
+    gstRegistered: chargesTax || (profile?.taxNumber.trim() ?? "") !== "",
+    gstMethod: "regular",
+    taxableShare: "100",
+    gstOnExpenses: "",
+  };
+}
+
+function hydrateTax(raw: unknown, invoice: Invoice, profile: BusinessProfile): TaxSettings {
+  const base = defaultTaxSettings(invoice, profile);
+  if (!isObject(raw)) return base;
+  const text = (key: keyof TaxSettings) => (typeof raw[key] === "string" ? (raw[key] as string) : (base[key] as string));
+  return {
+    year: typeof raw.year === "number" && TAX_YEARS[raw.year] ? raw.year : base.year,
+    province: PROVINCE_ORDER.includes(raw.province as ProvinceCode) ? (raw.province as ProvinceCode) : base.province,
+    revenue: text("revenue"),
+    expenses: text("expenses"),
+    employmentIncome: text("employmentIncome"),
+    taxDeductedAtWork: text("taxDeductedAtWork"),
+    rrsp: text("rrsp"),
+    instalmentsPaid: text("instalmentsPaid"),
+    gstRegistered: typeof raw.gstRegistered === "boolean" ? raw.gstRegistered : base.gstRegistered,
+    gstMethod: raw.gstMethod === "quick" ? "quick" : "regular",
+    taxableShare: text("taxableShare"),
+    gstOnExpenses: text("gstOnExpenses"),
+  };
+}
+
 /** A fresh first-run state: invoice #1 is in use, so the counter moves to 2. */
 export function initialState(defaults: BusinessProfile = defaultProfile): AppState {
   const settings = { ...defaultSettings };
@@ -136,6 +210,7 @@ export function initialState(defaults: BusinessProfile = defaultProfile): AppSta
     settings: { ...settings, nextNumber: settings.nextNumber + 1 },
     invoice,
     clients: [],
+    tax: defaultTaxSettings(invoice, defaults),
   };
 }
 
@@ -193,7 +268,7 @@ export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile
   const clients = Array.isArray(raw.clients)
     ? (raw.clients.filter(isObject).map((c) => ({ ...emptyClient(), ...c })) as Client[])
     : [];
-  return { version: 2, profile, settings, invoice, clients };
+  return { version: 2, profile, settings, invoice, clients, tax: hydrateTax(raw.tax, invoice, profile) };
 }
 
 /** Adds or refreshes a client in the saved list, matched by name. Most recent first. */

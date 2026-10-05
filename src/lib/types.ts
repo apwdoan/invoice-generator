@@ -1,3 +1,5 @@
+import type { ProvinceCode } from "./taxRates";
+
 export type PageSize = "LETTER" | "A4";
 export type InvoiceFont = "sans" | "serif" | "mono";
 export type PaymentTerms = "receipt" | "net15" | "net30" | "net45" | "net60" | "custom";
@@ -86,10 +88,28 @@ export interface Settings {
   numberDigits: number;
 }
 
+/** Inputs to the tax estimate. Amounts are kept as typed, like invoice fields. */
+export interface TaxSettings {
+  year: number;
+  province: ProvinceCode;
+  revenue: string;
+  expenses: string;
+  employmentIncome: string;
+  taxDeductedAtWork: string;
+  rrsp: string;
+  instalmentsPaid: string;
+  gstRegistered: boolean;
+  gstMethod: "regular" | "quick";
+  /** Percentage of revenue GST/HST is charged on. */
+  taxableShare: string;
+  gstOnExpenses: string;
+}
+
 export interface AppState {
   version: 2;
   profile: BusinessProfile;
   settings: Settings;
   invoice: Invoice;
   clients: Client[];
+  tax: TaxSettings;
 }

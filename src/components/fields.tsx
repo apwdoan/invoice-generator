@@ -84,6 +84,69 @@ export function SelectField({ label, hint, hintTone, className, value, onChange,
   );
 }
 
+type AdornedFieldProps = FieldShell &
+  Omit<InputHTMLAttributes<HTMLInputElement>, "onChange" | "value"> & {
+    value: string;
+    onChange: (value: string) => void;
+  };
+
+/** A dollar amount, tidied to "12,500" when the field is left. */
+export function MoneyField({
+  label,
+  hint,
+  hintTone,
+  className,
+  value,
+  onChange,
+  onBlur,
+  ...rest
+}: AdornedFieldProps & { onBlur?: () => void }) {
+  const id = useId();
+  return (
+    <div className={`field ${className ?? ""}`}>
+      <label htmlFor={id}>{label}</label>
+      <div className="money-input">
+        <span aria-hidden="true">$</span>
+        <input
+          id={id}
+          className="num"
+          inputMode="decimal"
+          autoComplete="off"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          {...rest}
+        />
+      </div>
+      <Hint id={`${id}-hint`} hint={hint} tone={hintTone} />
+    </div>
+  );
+}
+
+export function PercentField({ label, hint, hintTone, className, value, onChange, ...rest }: AdornedFieldProps) {
+  const id = useId();
+  return (
+    <div className={`field ${className ?? ""}`}>
+      <label htmlFor={id}>{label}</label>
+      <div className="rate-input">
+        <input
+          id={id}
+          className="num"
+          inputMode="decimal"
+          autoComplete="off"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          {...rest}
+        />
+        <span aria-hidden="true">%</span>
+      </div>
+      <Hint id={`${id}-hint`} hint={hint} tone={hintTone} />
+    </div>
+  );
+}
+
 export function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section className="section">

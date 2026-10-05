@@ -7,7 +7,8 @@ A desktop app for making branded invoices and exporting them as PDFs. Built with
 - **Taxes:** presets for every province and territory, or any custom combination. Items can be marked as not taxable (reimbursed expenses, for example).
 - **Live preview:** the preview is the real PDF drawn with pdf.js, so what you see is exactly what gets exported.
 - **PDF export:** native save dialog, then Open or Show in folder. Letter or A4.
-- **Remembers things:** branding, numbering, saved clients and the current draft are saved automatically.
+- **Tax estimate:** how much of each invoice to set aside for income tax and CPP/QPP, and how much GST/HST to remit, for every province and territory.
+- **Remembers things:** branding, numbering, saved clients, the current draft and the tax estimate's inputs are saved automatically.
 
 ## Run it
 
@@ -47,6 +48,22 @@ Every other colour on the invoice is derived from those three by `src/pdf/theme.
 
 Square or stacked logos sit beside your contact details; wide ones sit above them.
 
+## Tax estimate
+
+The Tax estimate tab works out a sole proprietor's year from expected revenue and expenses, plus any employment income, RRSP/FHSA deductions, tax deducted at work and instalments already paid. It shows:
+
+- **The share of each invoice to set aside** for income tax and CPP/QPP: the tax the business adds, divided by revenue. With a job as well, only the extra tax from the business counts. The current invoice gets a line saying exactly how much to move to savings when it's paid, including the sales tax on it.
+- **The tax on the next $1,000** of revenue, so you can see where the brackets and CPP maximums fall.
+- **A full breakdown:** CPP or QPP on both halves (with CPP2), the deductible and credit portions, federal tax, provincial tax with Ontario's surtax and Health Premium and the BC and Ontario tax reductions, and in Québec the abatement, QPIP, the deduction for workers and the Health Services Fund.
+- **GST/HST to remit** under the regular method (less input tax credits) or the Quick Method (service-business remittance rate and the 1% credit, with the amount kept added to income), and a warning once revenue passes the $30,000 small supplier limit.
+- **Instalments and due dates.**
+
+It is an estimate. Other credits and deductions (tuition, medical, donations, dependants), refundable benefits, low-income reductions outside BC and Ontario, PST and QST, and Québec's prescription drug insurance premium are left out, and employment income is assumed to come from one employer.
+
+The rates are in `src/lib/taxRates.ts`, one table per year, with sources listed at the top. The 2026 table comes from CRA's payroll formulas (T4127, July 2026 edition, which includes BC's, Newfoundland and Labrador's and PEI's mid-year changes), Finances Québec's 2026 parameters, and CRA guide RC4058 for Quick Method rates. To add a year, copy the table, update the figures and add it to `TAX_YEARS`; the year picker shows it automatically.
+
+`npm test` checks the calculations against EY's published 2026 combined rate tables for each province and against worked examples (CPP shared between a job and a business, Québec, the Quick Method).
+
 ## Where your data lives
 
 Everything is in one JSON file in the app's data folder:
@@ -64,7 +81,7 @@ Saves are atomic (write to a temp file, then rename). If the file is ever unread
 ```
 src/
   App.tsx                 Layout, autosave, preview and export flow
-  components/             Invoice and Branding forms, line items, taxes, PDF preview
+  components/             Invoice, Branding and Tax estimate forms, line items, PDF preview, tax summary
   lib/
     palette.ts            Finds a logo's main colours and assigns them to roles
     color.ts              Contrast, CIELAB and OKLCH helpers
@@ -73,6 +90,9 @@ src/
     native.ts             The bridge to Rust (with browser fallbacks)
     registration.ts       GST/HST number checks
     logo.ts               Normalises uploaded logos for embedding
+    taxRates.ts           Tax rates and thresholds by year, with sources
+    taxEstimate.ts        Income tax, CPP/QPP and GST/HST calculations
+    taxSettings.ts        Turns the Tax estimate form into calculator input
   pdf/
     InvoiceDocument.tsx   The invoice layout (@react-pdf/renderer)
     theme.ts              Turns the three brand colours into the invoice's full colour set
@@ -82,6 +102,7 @@ src-tauri/
   src/lib.rs              Commands: load_state, save_state, export_pdf, open/reveal
   tauri.conf.json         Window, CSP and bundle settings
 scripts/sample-pdf.tsx    Renders a sample invoice without the app
+scripts/tax.test.ts       Checks the tax estimate (npm test)
 ```
 
 The PDF is generated in the webview with `@react-pdf/renderer`, then sent to Rust as raw bytes. Rust shows the save dialog and writes the file, so the webview has no general file system access. Open and Show in folder only work on files exported during the current session.

@@ -32,6 +32,12 @@
   --font-invoice-serif: "Invoice Serif", Georgia, serif;
   --font-invoice-mono: "Invoice Mono", ui-monospace, monospace;
 
+  /* Revenue bar: what you keep leads in green; expenses recede as context. Checked for colour-vision separation. */
+  --viz-kept: #1e8a63;
+  --viz-tax: #3a62a8;
+  --viz-contributions: #d08a2c;
+  --viz-expenses: #aab3bd;
+
   --radius: 6px;
   --editor-width: 500px;
 
@@ -557,6 +563,22 @@ input[type="checkbox"] {
   color: var(--muted);
 }
 
+.money-input {
+  position: relative;
+}
+
+.money-input input {
+  padding-left: 22px;
+}
+
+.money-input span {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
 /* Branding */
 
 .logo-drop {
@@ -758,6 +780,18 @@ input[type="checkbox"] {
   box-shadow: 0 1px 2px rgba(24, 33, 43, 0.12);
 }
 
+/* A segmented control used as a form field: full width, the height of an input. */
+.segmented-field {
+  display: flex;
+  background: #e4e8ed;
+}
+
+.segmented-field button {
+  flex: 1;
+  height: 30px;
+  font-size: 13px;
+}
+
 .preview-frame {
   flex: 1;
   overflow: auto;
@@ -878,4 +912,271 @@ input[type="checkbox"] {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 20px;
+}
+
+/* Tax estimate */
+
+.desk-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.desk-view[hidden] {
+  display: none;
+}
+
+.tax-frame {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 40px 64px;
+}
+
+.tax-sheet {
+  display: grid;
+  gap: 0;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 36px 28px;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(24, 33, 43, 0.14),
+    0 10px 30px rgba(24, 33, 43, 0.12);
+}
+
+.tax-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 15rem);
+  gap: 28px;
+  align-items: start;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.hero-figure {
+  margin-top: 2px;
+  font-size: 56px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-note {
+  max-width: 24rem;
+  margin-top: 6px;
+  color: var(--ink-2);
+}
+
+.hero-empty {
+  max-width: 22rem;
+  margin-top: 8px;
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.tax-kpis {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.tax-kpis div {
+  display: grid;
+  gap: 1px;
+}
+
+.tax-kpis dt {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.tax-kpis dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-aside {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.tax-invoice {
+  margin-top: 20px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--accent-wash);
+  font-size: 13.5px;
+}
+
+.tax-section {
+  display: grid;
+  gap: 12px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tax-section h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.revenue {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.revenue-bar {
+  display: flex;
+  gap: 2px;
+  height: 30px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.revenue-segment {
+  display: grid;
+  place-items: center;
+  flex-basis: 0;
+  min-width: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.revenue-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.revenue-legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-key {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legend-label {
+  color: var(--ink-2);
+}
+
+.legend-value {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.tax-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.tax-table th,
+.tax-table td {
+  padding: 5px 0;
+  text-align: left;
+  font-weight: 400;
+  vertical-align: baseline;
+}
+
+.tax-table td {
+  padding-left: 16px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tax-table tbody + tbody .line-group th {
+  padding-top: 18px;
+}
+
+.line-group th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.line-detail {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.line-subtotal th,
+.line-subtotal td {
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+
+.line-total th,
+.line-total td {
+  padding-top: 9px;
+  border-top: 1.5px solid var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tax-table tbody + tbody .line-total th,
+.tax-table tbody + tbody .line-total td {
+  padding-top: 9px;
+}
+
+.tax-table tbody:last-child tr:first-child.line-total th,
+.tax-table tbody:last-child tr:first-child.line-total td {
+  padding-top: 12px;
+}
+
+.tax-dates {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.tax-notes {
+  padding-top: 18px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.tax-sheet .hint {
+  max-width: 40rem;
+}
+
+@media (max-width: 1100px) {
+  .tax-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .tax-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }

@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "sample-pdf": "tsx --tsconfig scripts/tsconfig.json scripts/sample-pdf.tsx"
+    "sample-pdf": "tsx --tsconfig scripts/tsconfig.json scripts/sample-pdf.tsx",
+    "test": "tsx --test scripts/tax.test.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.3.0",
