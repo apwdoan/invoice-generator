@@ -1,0 +1,194 @@
+# Builds the installers for macOS, Windows and Linux and attaches them to a draft GitHub release.
+#
+# Start it by pushing a version tag (git tag v0.2.0 && git push origin v0.2.0), or from the
+# Actions tab with "Run workflow". The release is named after the version in
+# src-tauri/tauri.conf.json and stays a draft until you publish it.
+#
+# Nothing is cached between runs, so a cached dependency can't end up inside a release build.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Check the version numbers agree
+        run: |
+          app=$(jq -r .version src-tauri/tauri.conf.json)
+          pkg=$(jq -r .version package.json)
+          crate=$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -n 1)
+          echo "tauri.conf.json $app, package.json $pkg, Cargo.toml $crate"
+          if [ "$app" != "$pkg" ] || [ "$app" != "$crate" ]; then
+            echo "::error::Set the same version in src-tauri/tauri.conf.json, package.json and src-tauri/Cargo.toml."
+            exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$app" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match the app version $app. Tag it v$app or change the version."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Typecheck and build the interface
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+  release:
+    name: Create draft release
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      id: ${{ steps.release.outputs.id }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: |
+            **Which file to download**
+
+            - **macOS** (Apple silicon and Intel): the `.dmg`
+            - **Windows**: the `-setup.exe`, or the `.msi` for managed installs
+            - **Linux**: the `.AppImage`, or the `.deb` or `.rpm` for your distribution
+
+            If macOS says it can't check the app for malware, open System Settings, go to Privacy & Security and choose Open Anyway. If Windows SmartScreen appears, choose More info, then Run anyway.
+        run: |
+          tag="v$(jq -r .version src-tauri/tauri.conf.json)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          # Drafts have no git tag yet, so look through the release list rather than by tag.
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$tag\") | \"\(.id) \(.draft)\"" | head -n 1)
+
+          if [ -z "$existing" ]; then
+            id=$(gh api "repos/$GITHUB_REPOSITORY/releases" \
+              -f tag_name="$tag" \
+              -f target_commitish="$GITHUB_SHA" \
+              -f name="Invoice Generator $tag" \
+              -f body="$BODY" \
+              -F draft=true \
+              -F generate_release_notes=true \
+              --jq .id)
+            echo "Created draft release $tag"
+          else
+            read -r id draft <<< "$existing"
+            if [ "$draft" != "true" ]; then
+              echo "::error::$tag is already published. Raise the version to build a new release."
+              exit 1
+            fi
+            echo "Reusing draft release $tag; its files will be replaced"
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build for ${{ matrix.name }}
+    needs: release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            runner: macos-latest
+            # One app that runs natively on Apple silicon and Intel Macs.
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: Windows
+            runner: windows-latest
+            args: ""
+            rust-targets: ""
+          - name: Linux
+            # The oldest supported Ubuntu, so the AppImage runs on older distributions too.
+            runner: ubuntu-22.04
+            args: ""
+            rust-targets: ""
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - run: npm ci
+
+      # Signs and notarizes the macOS app when the Apple secrets are set in the repository
+      # (Settings > Secrets and variables > Actions). Without them the app is ad-hoc signed,
+      # and people approve it once in Privacy & Security. Tauri treats a variable that is set
+      # but empty as present, so they are only passed on when they have a value.
+      - name: Set up macOS signing
+        if: runner.os == 'macOS'
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          NOTARIZE_ID: ${{ secrets.APPLE_ID }}
+          NOTARIZE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          NOTARIZE_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$CERTIFICATE" ]; then
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+            echo "::notice::No Apple certificate is set, so the macOS app is ad-hoc signed."
+            exit 0
+          fi
+          {
+            echo "APPLE_CERTIFICATE<<CERTIFICATE_END"
+            echo "$CERTIFICATE"
+            echo "CERTIFICATE_END"
+            echo "APPLE_CERTIFICATE_PASSWORD=$CERTIFICATE_PASSWORD"
+            if [ -n "$SIGNING_IDENTITY" ]; then echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY"; fi
+            if [ -n "$NOTARIZE_ID" ]; then
+              echo "APPLE_ID=$NOTARIZE_ID"
+              echo "APPLE_PASSWORD=$NOTARIZE_PASSWORD"
+              echo "APPLE_TEAM_ID=$NOTARIZE_TEAM"
+            fi
+          } >> "$GITHUB_ENV"
+
+      - name: Build and upload
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.release.outputs.id }}
+          args: ${{ matrix.args }}
+          # The app has no auto-updater, so skip the updater manifest.
+          uploadUpdaterJson: false

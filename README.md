@@ -31,6 +31,26 @@ The result is in `src-tauri/target/release/bundle/`.
 
 `npm run dev` also works in an ordinary browser for interface work. In that mode it saves to localStorage and downloads the PDF instead of showing a save dialog.
 
+## Releases
+
+`.github/workflows/release.yml` builds the installers on GitHub and attaches them to a draft release:
+
+| System | Files |
+| --- | --- |
+| macOS | `.dmg`, one universal app for Apple silicon and Intel |
+| Windows | `-setup.exe` and `.msi` |
+| Linux | `.AppImage`, `.deb` and `.rpm` |
+
+To make a release:
+
+1. Set the new version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, and commit.
+2. Tag and push it: `git tag v0.2.0 && git push origin v0.2.0`. You can also start it from the Actions tab with **Run workflow**, which builds whatever version is on that branch.
+3. When the three builds finish (macOS takes longest), open the draft under Releases, check the files and notes, and publish it.
+
+Before building, the workflow checks that the three version numbers match each other and the tag, typechecks, and runs the tests. Re-running it for an unpublished version replaces that draft's files; a version that is already published is refused, so bump it first.
+
+The builds aren't code-signed unless you add certificates, so macOS asks people to allow the app once in Privacy & Security, and Windows SmartScreen shows a warning. To sign and notarize the Mac app, add these repository secrets (Settings > Secrets and variables > Actions) and the workflow picks them up: `APPLE_CERTIFICATE` (the .p12 exported from Keychain Access, base64-encoded), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, and for notarization `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password) and `APPLE_TEAM_ID`. Tauri's [signing guides](https://v2.tauri.app/distribute/sign/macos/) cover getting them, and Windows signing.
+
 ## Logo and colours
 
 The app starts unbranded: no logo, no business name, and neutral charcoal colours. Add your logo in Branding and the invoice takes its colours from it:
