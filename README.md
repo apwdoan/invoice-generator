@@ -34,21 +34,22 @@ The result is in `src-tauri/target/release/bundle/`.
 
 ## Releases
 
-`.github/workflows/release.yml` builds the installers on GitHub and attaches them to a draft release:
+`.github/workflows/release.yml` builds everything on GitHub and publishes it under Releases:
 
-| System | Files |
-| --- | --- |
-| macOS | `.dmg`, one universal app for Apple silicon and Intel |
-| Windows | `-setup.exe` and `.msi` |
-| Linux | `.AppImage`, `.deb` and `.rpm` |
+| System | Installers | Standalone binary |
+| --- | --- | --- |
+| macOS | `.dmg`, one universal app for Apple silicon and Intel | None: the `.app` in the `.dmg` is the app |
+| Windows | `-setup.exe` and `.msi` | `invoice-generator_<version>_windows_x64.exe`, runs without installing |
+| Linux | `.AppImage`, `.deb` and `.rpm` | `invoice-generator_<version>_linux_x64`, needs WebKitGTK 4.1 |
 
 To make a release:
 
 1. Set the new version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`, and commit.
-2. Tag and push it: `git tag v0.2.0 && git push origin v0.2.0`. You can also start it from the Actions tab with **Run workflow**, which builds whatever version is on that branch.
-3. When the three builds finish (macOS takes longest), open the draft under Releases, check the files and notes, and publish it.
+2. Tag and push it: `git tag v0.2.0 && git push origin v0.2.0`. You can also start it from the Actions tab with **Run workflow**, which builds whatever version is on that branch and creates the tag when it publishes. Untick **Publish** there to stop at a draft, for a test run.
 
-Before building, the workflow checks that the three version numbers match each other and the tag, typechecks, and runs the tests. Re-running it for an unpublished version replaces that draft's files; a version that is already published is refused, so bump it first.
+The workflow checks that the three version numbers match each other and the tag, typechecks, and runs the tests. It then uploads each build to a draft release and publishes it once all five builds have succeeded, with GitHub's generated notes. If a build fails, the draft stays unpublished; re-running the workflow replaces its files and publishes it when everything passes. A version that is already published is refused, so bump it first.
+
+The standalone binaries are built separately with `--no-bundle`, so they aren't marked as coming from an installer.
 
 The builds aren't code-signed unless you add certificates, so macOS asks people to allow the app once in Privacy & Security, and Windows SmartScreen shows a warning. To sign and notarize the Mac app, add these repository secrets (Settings > Secrets and variables > Actions) and the workflow picks them up: `APPLE_CERTIFICATE` (the .p12 exported from Keychain Access, base64-encoded), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, and for notarization `APPLE_ID`, `APPLE_PASSWORD` (an app-specific password) and `APPLE_TEAM_ID`. Tauri's [signing guides](https://v2.tauri.app/distribute/sign/macos/) cover getting them, and Windows signing.
 

@@ -1,8 +1,11 @@
-# Builds the installers for macOS, Windows and Linux and attaches them to a draft GitHub release.
+# Builds the installers and standalone binaries for macOS, Windows and Linux, uploads them to a
+# GitHub release, and publishes the release once every build has succeeded.
 #
 # Start it by pushing a version tag (git tag v0.2.0 && git push origin v0.2.0), or from the
-# Actions tab with "Run workflow". The release is named after the version in
-# src-tauri/tauri.conf.json and stays a draft until you publish it.
+# Actions tab with "Run workflow", where you can choose to stop at a draft. The release is
+# named after the version in src-tauri/tauri.conf.json. Files go to a draft first, so nobody
+# sees a half-uploaded release; if any build fails, the draft stays unpublished and re-running
+# the workflow fills it in.
 #
 # Nothing is cached between runs, so a cached dependency can't end up inside a release build.
 
@@ -13,6 +16,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the release when the builds finish (untick to leave it as a draft)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -74,9 +82,13 @@ jobs:
           BODY: |
             **Which file to download**
 
-            - **macOS** (Apple silicon and Intel): the `.dmg`
-            - **Windows**: the `-setup.exe`, or the `.msi` for managed installs
-            - **Linux**: the `.AppImage`, or the `.deb` or `.rpm` for your distribution
+            | | Installer | Without installing |
+            | --- | --- | --- |
+            | **macOS** (Apple silicon and Intel) | `.dmg` | |
+            | **Windows** | `-setup.exe`, or `.msi` for managed installs | `_windows_x64.exe` runs as is |
+            | **Linux** | `.AppImage`, or `.deb` / `.rpm` for your distribution | `_linux_x64` binary |
+
+            The standalone Windows `.exe` needs Microsoft Edge WebView2, which Windows 10 and 11 already have. The Linux binary needs WebKitGTK 4.1 installed (`libwebkit2gtk-4.1-0` on Ubuntu and Debian); run `chmod +x` on it after downloading.
 
             If macOS says it can't check the app for malware, open System Settings, go to Privacy & Security and choose Open Anyway. If Windows SmartScreen appears, choose More info, then Run anyway.
         run: |
@@ -108,7 +120,7 @@ jobs:
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build for ${{ matrix.name }}
+    name: ${{ matrix.name }}
     needs: release
     permissions:
       contents: write
@@ -116,20 +128,36 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: macOS
+          - name: macOS installer
             runner: macos-latest
             # One app that runs natively on Apple silicon and Intel Macs.
             args: --target universal-apple-darwin
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-          - name: Windows
+            binary: false
+          - name: Windows installers
             runner: windows-latest
             args: ""
             rust-targets: ""
-          - name: Linux
-            # The oldest supported Ubuntu, so the AppImage runs on older distributions too.
+            binary: false
+          - name: Linux packages
+            # The oldest supported Ubuntu, so the packages run on older distributions too.
             runner: ubuntu-22.04
             args: ""
             rust-targets: ""
+            binary: false
+          # Standalone executables come from their own build without bundling, as tauri-action
+          # advises: an installer build marks its executable with the installer type.
+          # macOS has no standalone GUI executable; the .app inside the .dmg is the app.
+          - name: Windows binary
+            runner: windows-latest
+            args: --no-bundle
+            rust-targets: ""
+            binary: true
+          - name: Linux binary
+            runner: ubuntu-22.04
+            args: --no-bundle
+            rust-targets: ""
+            binary: true
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
@@ -190,5 +218,33 @@ jobs:
         with:
           releaseId: ${{ needs.release.outputs.id }}
           args: ${{ matrix.args }}
+          uploadPlainBinary: ${{ matrix.binary }}
+          # Binaries get the version in their name, like the installers:
+          # invoice-generator_0.2.0_windows_x64.exe. Installers keep Tauri's own names.
+          releaseAssetNamePattern: ${{ matrix.binary && '[mainBinaryName]_[version]_[platform]_[arch][ext]' || '' }}
           # The app has no auto-updater, so skip the updater manifest.
           uploadUpdaterJson: false
+
+  publish:
+    name: Publish release
+    # Runs only when the draft exists and every build above succeeded. A manual run with
+    # "publish" unticked stops here and leaves the draft for you to check.
+    needs: [release, build]
+    if: github.event_name != 'workflow_dispatch' || inputs.publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          # Publishing creates the git tag at the built commit if it doesn't exist yet.
+          url=$(gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            -F draft=false \
+            -f make_latest=true \
+            --jq .html_url)
+          echo "Published $TAG: $url"
+          echo "Published [$TAG]($url)" >> "$GITHUB_STEP_SUMMARY"
