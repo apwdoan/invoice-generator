@@ -12,7 +12,7 @@ A desktop app for making branded invoices and exporting them as PDFs. Built with
 
 ## Run it
 
-You need [Node.js](https://nodejs.org) 20 or newer and [Rust](https://rustup.rs). On macOS, also install the Xcode command line tools (`xcode-select --install`). On Windows, the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) page covers the build tools; WebView2 is already on Windows 10 and 11.
+You need [Node.js](https://nodejs.org) 20 or newer and [Rust](https://rustup.rs) 1.90 or newer (`rustup update` brings an older install up to date). On macOS, also install the Xcode command line tools (`xcode-select --install`). On Windows, the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) page covers the build tools; WebView2 is already on Windows 10 and 11.
 
 ```sh
 npm install
