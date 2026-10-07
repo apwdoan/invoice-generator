@@ -2,6 +2,8 @@ import type { ProvinceCode } from "./taxRates";
 
 export type PageSize = "LETTER" | "A4";
 export type InvoiceFont = "sans" | "serif" | "mono";
+/** The app's colour theme. The invoice itself is always printed on white. */
+export type Appearance = "system" | "light" | "dark";
 export type PaymentTerms = "receipt" | "net15" | "net30" | "net45" | "net60" | "custom";
 
 export interface Logo {
@@ -83,6 +85,7 @@ export interface Invoice {
 
 export interface Settings {
   pageSize: PageSize;
+  appearance: Appearance;
   numberPrefix: string;
   nextNumber: number;
   numberDigits: number;

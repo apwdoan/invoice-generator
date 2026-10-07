@@ -113,6 +113,7 @@ export const defaultProfile: BusinessProfile = {
 
 export const defaultSettings: Settings = {
   pageSize: "LETTER",
+  appearance: "system",
   numberPrefix: "INV-",
   nextNumber: 1,
   numberDigits: 4,
@@ -253,6 +254,7 @@ export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile
     profile.colors = hydrateColors(rawColors, defaults.colors);
   }
   const settings = { ...base.settings, ...(isObject(raw.settings) ? raw.settings : {}) } as Settings;
+  if (!["system", "light", "dark"].includes(settings.appearance)) settings.appearance = "system";
   const rawInvoice = isObject(raw.invoice) ? raw.invoice : {};
   const invoice = {
     ...base.invoice,

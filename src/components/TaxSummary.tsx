@@ -61,10 +61,10 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 
 /** Colour roles for the revenue bar. Kept leads in the app's green; expenses recede as context. */
 const PARTS = {
-  kept: { color: "var(--viz-kept)", ink: "#fff" },
-  tax: { color: "var(--viz-tax)", ink: "#fff" },
-  contributions: { color: "var(--viz-contributions)", ink: "var(--ink)" },
-  expenses: { color: "var(--viz-expenses)", ink: "var(--ink)" },
+  kept: { color: "var(--viz-kept)", ink: "var(--viz-on-kept)" },
+  tax: { color: "var(--viz-tax)", ink: "var(--viz-on-tax)" },
+  contributions: { color: "var(--viz-contributions)", ink: "var(--viz-on-contributions)" },
+  expenses: { color: "var(--viz-expenses)", ink: "var(--viz-on-expenses)" },
 };
 
 function RevenueBar({ estimate, contributionsLabel }: { estimate: Estimate; contributionsLabel: string }) {

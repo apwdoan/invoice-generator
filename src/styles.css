@@ -19,13 +19,34 @@
   --panel: #f7f8fa;
   --field: #ffffff;
   --desk: #e2e6eb;
+  --surface: #ffffff;
+  --hover: #e9edf1;
+  --line-hover: #b6c0cb;
+  --placeholder: #9aa4af;
+  --track: #d3d9e0;
+  --track-soft: #e4e8ed;
+  --thumb: #ffffff;
   --accent: #1e6b52;
   --accent-hover: #175a44;
   --accent-wash: #e3f0ea;
+  --accent-fill: #1e6b52;
+  --accent-fill-hover: #175a44;
+  --on-accent: #ffffff;
   --focus: rgba(30, 107, 82, 0.22);
   --warn: #9a5b06;
+  --warn-wash: #fbf3e6;
   --danger: #a33a3a;
+  --danger-wash: #fbecec;
+  --danger-fill: #a33a3a;
   --good: #1e6b52;
+  --toast: #18212b;
+  --toast-ink: #ffffff;
+  --toast-link: #9fdcc4;
+  --toast-muted: #b9c3ce;
+  --swatch-gap: #ffffff;
+  --swatch-edge: rgba(24, 33, 43, 0.08);
+  --shadow-rgb: 24, 33, 43;
+  --backdrop: rgba(24, 33, 43, 0.35);
 
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-invoice-sans: "IBM Plex Sans", sans-serif;
@@ -37,6 +58,10 @@
   --viz-tax: #3a62a8;
   --viz-contributions: #d08a2c;
   --viz-expenses: #aab3bd;
+  --viz-on-kept: #ffffff;
+  --viz-on-tax: #ffffff;
+  --viz-on-contributions: #18212b;
+  --viz-on-expenses: #18212b;
 
   --radius: 6px;
   --editor-width: 500px;
@@ -48,6 +73,110 @@
   color: var(--ink);
   background: var(--panel);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Dark theme for the app itself. The invoice and its preview stay as printed: white paper.
+ * It follows the system unless Appearance is set to Light or Dark (data-theme on <html>).
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #e7eaee;
+    --ink-2: #b3bcc6;
+    --muted: #8a94a0;
+    --line: #2b3139;
+    --line-strong: #3d4550;
+    --panel: #16191d;
+    --field: #1d2126;
+    --desk: #101317;
+    --surface: #1d2126;
+    --hover: #262c33;
+    --line-hover: #4d5762;
+    --placeholder: #6b7580;
+    --track: #262c33;
+    --track-soft: #22272d;
+    --thumb: #353d47;
+    --accent: #5bbf98;
+    --accent-hover: #7dd0ae;
+    --accent-wash: #16302a;
+    --accent-fill: #23805f;
+    --accent-fill-hover: #1c7354;
+    --on-accent: #ffffff;
+    --focus: rgba(91, 191, 152, 0.3);
+    --warn: #e3a64f;
+    --warn-wash: #2c2416;
+    --danger: #f08080;
+    --danger-wash: #351c1e;
+    --danger-fill: #a8403f;
+    --good: #5bbf98;
+    --toast: #2c333c;
+    --toast-ink: #f2f4f6;
+    --toast-link: #8fe0c0;
+    --toast-muted: #a7b0ba;
+    --swatch-gap: #16191d;
+    --swatch-edge: rgba(255, 255, 255, 0.12);
+    --shadow-rgb: 0, 0, 0;
+    --backdrop: rgba(0, 0, 0, 0.55);
+    /* Stepped for the dark surface and checked for colour-vision separation like the light set. */
+    --viz-kept: #2a9d73;
+    --viz-tax: #6589dc;
+    --viz-contributions: #c4832a;
+    --viz-expenses: #717a85;
+    --viz-on-kept: #111418;
+    --viz-on-tax: #111418;
+    --viz-on-contributions: #111418;
+    --viz-on-expenses: #111418;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e7eaee;
+  --ink-2: #b3bcc6;
+  --muted: #8a94a0;
+  --line: #2b3139;
+  --line-strong: #3d4550;
+  --panel: #16191d;
+  --field: #1d2126;
+  --desk: #101317;
+  --surface: #1d2126;
+  --hover: #262c33;
+  --line-hover: #4d5762;
+  --placeholder: #6b7580;
+  --track: #262c33;
+  --track-soft: #22272d;
+  --thumb: #353d47;
+  --accent: #5bbf98;
+  --accent-hover: #7dd0ae;
+  --accent-wash: #16302a;
+  --accent-fill: #23805f;
+  --accent-fill-hover: #1c7354;
+  --on-accent: #ffffff;
+  --focus: rgba(91, 191, 152, 0.3);
+  --warn: #e3a64f;
+  --warn-wash: #2c2416;
+  --danger: #f08080;
+  --danger-wash: #351c1e;
+  --danger-fill: #a8403f;
+  --good: #5bbf98;
+  --toast: #2c333c;
+  --toast-ink: #f2f4f6;
+  --toast-link: #8fe0c0;
+  --toast-muted: #a7b0ba;
+  --swatch-gap: #16191d;
+  --swatch-edge: rgba(255, 255, 255, 0.12);
+  --shadow-rgb: 0, 0, 0;
+  --backdrop: rgba(0, 0, 0, 0.55);
+  /* Stepped for the dark surface and checked for colour-vision separation like the light set. */
+  --viz-kept: #2a9d73;
+  --viz-tax: #6589dc;
+  --viz-contributions: #c4832a;
+  --viz-expenses: #717a85;
+  --viz-on-kept: #111418;
+  --viz-on-tax: #111418;
+  --viz-on-contributions: #111418;
+  --viz-on-expenses: #111418;
 }
 
 * {
@@ -107,7 +236,7 @@ p {
   gap: 20px;
   height: 54px;
   padding: 0 16px 0 18px;
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 
@@ -170,26 +299,26 @@ p {
   padding: 0 14px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .button:hover {
-  background: var(--panel);
-  border-color: #b6c0cb;
+  background: var(--hover);
+  border-color: var(--line-hover);
 }
 
 .button-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
 }
 
 .button-primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--accent-fill-hover);
+  border-color: var(--accent-fill-hover);
 }
 
 .button:disabled {
@@ -237,7 +366,7 @@ p {
 }
 
 .icon-button:hover:not(:disabled) {
-  background: #e9edf1;
+  background: var(--hover);
   color: var(--ink);
 }
 
@@ -379,7 +508,8 @@ p {
 :where(select) {
   padding-right: 28px;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5l3-3' stroke='%236b7684' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  /* A mid grey that reads on light and dark fields alike. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5l3-3' stroke='%237b8794' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 9px center;
   cursor: pointer;
@@ -387,7 +517,7 @@ p {
 
 input::placeholder,
 textarea::placeholder {
-  color: #9aa4af;
+  color: var(--placeholder);
 }
 
 :where(input, select, textarea):focus {
@@ -432,7 +562,7 @@ input[type="checkbox"] {
 .callout {
   padding: 9px 12px;
   border-left: 3px solid var(--warn);
-  background: #fbf3e6;
+  background: var(--warn-wash);
   border-radius: 0 var(--radius) var(--radius) 0;
   font-size: 13px;
 }
@@ -588,7 +718,7 @@ input[type="checkbox"] {
   padding: 16px;
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
 }
 
 .logo-drop p {
@@ -611,6 +741,21 @@ input[type="checkbox"] {
   object-fit: contain;
 }
 
+/* In the dark theme the logo sits on white, as it will on the invoice. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-drop img {
+    padding: 8px;
+    border-radius: 4px;
+    background: #fff;
+  }
+}
+
+:root[data-theme="dark"] .logo-drop img {
+  padding: 8px;
+  border-radius: 4px;
+  background: #fff;
+}
+
 .logo-actions {
   display: flex;
   align-items: center;
@@ -625,7 +770,7 @@ input[type="checkbox"] {
   padding: 10px 10px 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
 }
 
 .logo-palette .hint {
@@ -638,7 +783,7 @@ input[type="checkbox"] {
   height: 26px;
   border-radius: 4px;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(24, 33, 43, 0.08);
+  box-shadow: inset 0 0 0 1px var(--swatch-edge);
 }
 
 .logo-palette-swatches span {
@@ -668,7 +813,7 @@ input[type="checkbox"] {
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 2px solid #fff;
+  border: 2px solid var(--swatch-gap);
   border-radius: 50%;
   box-shadow: 0 0 0 1px var(--line-strong);
   cursor: pointer;
@@ -711,7 +856,7 @@ input[type="checkbox"] {
   padding: 10px 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   text-align: left;
   cursor: pointer;
 }
@@ -759,7 +904,7 @@ input[type="checkbox"] {
   display: inline-flex;
   padding: 2px;
   border-radius: 7px;
-  background: #d3d9e0;
+  background: var(--track);
 }
 
 .segmented button {
@@ -775,15 +920,15 @@ input[type="checkbox"] {
 }
 
 .segmented button[aria-checked="true"] {
-  background: #fff;
+  background: var(--thumb);
   color: var(--ink);
-  box-shadow: 0 1px 2px rgba(24, 33, 43, 0.12);
+  box-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.12);
 }
 
 /* A segmented control used as a form field: full width, the height of an input. */
 .segmented-field {
   display: flex;
-  background: #e4e8ed;
+  background: var(--track-soft);
 }
 
 .segmented-field button {
@@ -816,7 +961,7 @@ input[type="checkbox"] {
   margin: 0 40px 12px;
   padding: 9px 12px;
   border-left: 3px solid var(--danger);
-  background: #fbecec;
+  background: var(--danger-wash);
   font-size: 13px;
 }
 
@@ -831,9 +976,9 @@ input[type="checkbox"] {
   max-width: calc(100% - 48px);
   padding: 8px 8px 8px 16px;
   border-radius: 8px;
-  background: var(--ink);
-  color: #fff;
-  box-shadow: 0 8px 24px rgba(24, 33, 43, 0.25);
+  background: var(--toast);
+  color: var(--toast-ink);
+  box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.25);
   animation: notice-in 160ms ease-out;
 }
 
@@ -845,21 +990,22 @@ input[type="checkbox"] {
 }
 
 .notice .text-button {
-  color: #9fdcc4;
+  color: var(--toast-link);
   white-space: nowrap;
 }
 
 .notice .icon-button {
-  color: #b9c3ce;
+  color: var(--toast-muted);
 }
 
 .notice .icon-button:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--toast-ink);
 }
 
 .notice-error {
-  background: var(--danger);
+  background: var(--danger-fill);
+  color: #fff;
 }
 
 .notice-error span {
@@ -889,12 +1035,13 @@ input[type="checkbox"] {
   padding: 22px 22px 18px;
   border: 0;
   border-radius: 10px;
+  background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 20px 50px rgba(24, 33, 43, 0.3);
+  box-shadow: 0 20px 50px rgba(var(--shadow-rgb), 0.3);
 }
 
 .dialog::backdrop {
-  background: rgba(24, 33, 43, 0.35);
+  background: var(--backdrop);
 }
 
 .dialog h2 {
@@ -940,10 +1087,10 @@ input[type="checkbox"] {
   margin: 0 auto;
   padding: 32px 36px 28px;
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface);
   box-shadow:
-    0 1px 2px rgba(24, 33, 43, 0.14),
-    0 10px 30px rgba(24, 33, 43, 0.12);
+    0 1px 2px rgba(var(--shadow-rgb), 0.14),
+    0 10px 30px rgba(var(--shadow-rgb), 0.12);
 }
 
 .tax-hero {

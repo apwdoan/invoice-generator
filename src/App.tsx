@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppearanceButton } from "./components/AppearanceButton";
 import { BrandingForm } from "./components/BrandingForm";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { InvoiceForm } from "./components/InvoiceForm";
 import { PdfPreview } from "./components/PdfPreview";
 import { TaxForm } from "./components/TaxForm";
 import { TaxSummary } from "./components/TaxSummary";
+import { applyAppearance } from "./lib/appearance";
 import { computeTotals, formatMoney } from "./lib/money";
 import { exportPdf, fileNameOf, inDesktopApp, loadState, openExported, revealExported, safeFileName, saveState } from "./lib/native";
 import { hydrate, initialState, newInvoice, rememberClient } from "./lib/state";
@@ -59,6 +61,12 @@ export default function App() {
     }, 300);
     return () => clearTimeout(timer);
   }, [state]);
+
+  // Apply the light, dark or system theme whenever the setting changes.
+  const appearance = state?.settings.appearance;
+  useEffect(() => {
+    if (appearance) applyAppearance(appearance);
+  }, [appearance]);
 
   // Re-render the PDF preview after edits settle.
   const profile = state?.profile;
@@ -180,6 +188,7 @@ export default function App() {
             {saveStatus === "saved" && "All changes saved"}
             {saveStatus === "error" && "Changes not saved"}
           </span>
+          <AppearanceButton value={state.settings.appearance} onChange={(next) => updateSettings({ appearance: next })} />
           <button type="button" className="button" onClick={() => setConfirmNew(true)}>
             New invoice
           </button>

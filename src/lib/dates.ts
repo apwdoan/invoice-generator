@@ -2,10 +2,10 @@ import type { PaymentTerms } from "./types";
 
 export const TERMS: { value: PaymentTerms; label: string; days: number | null }[] = [
   { value: "receipt", label: "Due on receipt", days: 0 },
-  { value: "net15", label: "Net 15", days: 15 },
-  { value: "net30", label: "Net 30", days: 30 },
-  { value: "net45", label: "Net 45", days: 45 },
-  { value: "net60", label: "Net 60", days: 60 },
+  { value: "net15", label: "Net 15 days", days: 15 },
+  { value: "net30", label: "Net 30 days", days: 30 },
+  { value: "net45", label: "Net 45 days", days: 45 },
+  { value: "net60", label: "Net 60 days", days: 60 },
   { value: "custom", label: "Custom date", days: null },
 ];
 

@@ -8,6 +8,7 @@ A desktop app for making branded invoices and exporting them as PDFs. Built with
 - **Live preview:** the preview is the real PDF drawn with pdf.js, so what you see is exactly what gets exported.
 - **PDF export:** native save dialog, then Open or Show in folder. Letter or A4.
 - **Tax estimate:** how much of each invoice to set aside for income tax and CPP/QPP, and how much GST/HST to remit, for every province and territory.
+- **Light and dark:** the app follows your system's theme, or the button in the top bar sets Light or Dark. The invoice and its preview stay white, as they print.
 - **Remembers things:** branding, numbering, saved clients, the current draft and the tax estimate's inputs are saved automatically.
 
 ## Run it
