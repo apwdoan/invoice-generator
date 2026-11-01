@@ -50,15 +50,26 @@ export interface Client {
   name: string;
   contact: string;
   email: string;
+  phone: string;
   address: string;
 }
+
+/**
+ * How a line item is priced:
+ * - hourly: hours times an hourly rate
+ * - flat: one fixed amount
+ * - unit: a quantity times a unit price (how every item worked before billing types existed)
+ */
+export type Billing = "hourly" | "flat" | "unit";
 
 export interface LineItem {
   id: string;
   description: string;
   detail: string;
-  /** Kept as strings so fields can be edited freely ("1.", ""). */
+  billing: Billing;
+  /** Hours or quantity. Ignored for flat items. Kept as strings so fields can be edited freely ("1.", ""). */
   quantity: string;
+  /** The hourly rate, unit price or flat amount. */
   unitPrice: string;
   taxable: boolean;
 }

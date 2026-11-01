@@ -2,14 +2,14 @@ import { Defs, Document, Image, LinearGradient, Page, Rect, Stop, StyleSheet, Sv
 import type { ComponentProps } from "react";
 import { formatDate, termsLabel } from "../lib/dates";
 import { billableItems, computeTotals, formatMoney, formatQuantity, formatRate, lineCents, parseAmount, roundCents } from "../lib/money";
-import type { BusinessProfile, Invoice, PageSize } from "../lib/types";
+import type { BusinessProfile, Invoice, LineItem, PageSize } from "../lib/types";
 import { FONT_FAMILY } from "./fonts";
 import { invoiceTheme } from "./theme";
 
 const PAGE_WIDTH: Record<PageSize, number> = { LETTER: 612, A4: 595.28 };
 const BAND_HEIGHT = 7;
 
-const COL_QTY = 50;
+const COL_QTY = 56;
 const COL_RATE = 80;
 const COL_AMOUNT = 88;
 
@@ -45,6 +45,16 @@ function lines(text: string): string[] {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
+}
+
+/**
+ * What the quantity column is called. Flat-rate items leave it blank, so only the
+ * other items count: all hourly reads "Hours", otherwise "Qty" with hours marked "hrs".
+ */
+function quantityHeading(items: LineItem[]): "Hours" | "Qty" | null {
+  const counted = items.filter((item) => item.billing !== "flat");
+  if (counted.length === 0) return null;
+  return counted.every((item) => item.billing === "hourly") ? "Hours" : "Qty";
 }
 
 /** Fits the logo inside its height while never letting a wide wordmark exceed 240pt. */
@@ -85,6 +95,8 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
   const theme = invoiceTheme(profile.colors);
   const family = FONT_FAMILY[profile.font] ?? FONT_FAMILY.sans;
   const items = billableItems(invoice.items);
+  // An invoice of only flat-rate items has no quantities or rates to show.
+  const qtyHeading = quantityHeading(items);
   const totals = computeTotals(invoice);
   const money = (cents: number) => formatMoney(cents, invoice.currency);
   const logo = logoBox(profile);
@@ -245,7 +257,14 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
                 {line}
               </T>
             ))}
-            {client.email.trim() !== "" && <T style={s.muted}>{client.email.trim()}</T>}
+            {[client.email, client.phone]
+              .map((v) => v.trim())
+              .filter(Boolean)
+              .map((v, i) => (
+                <T key={`cc${i}`} style={s.muted}>
+                  {v}
+                </T>
+              ))}
           </View>
           <View style={s.dates}>
             <T style={s.label}>Issued</T>
@@ -264,23 +283,46 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
         <View style={s.table}>
           <View style={s.thead}>
             <T style={[s.th, s.desc]}>Description</T>
-            <T style={[s.th, s.qty]}>Qty</T>
-            <T style={[s.th, s.rate]}>Rate</T>
+            {qtyHeading && (
+              <>
+                <T style={[s.th, s.qty]}>{qtyHeading}</T>
+                <T style={[s.th, s.rate]}>Rate</T>
+              </>
+            )}
             <T style={[s.th, s.amount]}>Amount</T>
           </View>
           {items.length === 0 && <T style={s.empty}>No line items yet.</T>}
-          {items.map((item) => (
-            <View key={item.id} style={s.row} wrap={false}>
-              <View style={s.desc}>
-                <T>{item.description}</T>
-                {item.detail.trim() !== "" && <T style={s.detail}>{item.detail.trim()}</T>}
-                {!item.taxable && taxNames !== "" && <T style={s.note}>No {taxNames} charged</T>}
+          {items.map((item) => {
+            const price = money(roundCents(parseAmount(item.unitPrice) * 100));
+            return (
+              <View key={item.id} style={s.row} wrap={false}>
+                <View style={s.desc}>
+                  <T>{item.description}</T>
+                  {item.detail.trim() !== "" && <T style={s.detail}>{item.detail.trim()}</T>}
+                  {!item.taxable && taxNames !== "" && <T style={s.note}>No {taxNames} charged</T>}
+                </View>
+                {qtyHeading &&
+                  (item.billing === "flat" ? (
+                    <>
+                      <View style={{ width: COL_QTY }} />
+                      <T style={[s.rate, s.muted]}>Flat rate</T>
+                    </>
+                  ) : (
+                    <>
+                      <T style={s.qty}>
+                        {formatQuantity(item.quantity)}
+                        {item.billing === "hourly" && qtyHeading === "Qty" ? " hrs" : ""}
+                      </T>
+                      <T style={s.rate}>
+                        {price}
+                        {item.billing === "hourly" && <T style={s.muted}>/hr</T>}
+                      </T>
+                    </>
+                  ))}
+                <T style={s.amount}>{money(lineCents(item))}</T>
               </View>
-              <T style={s.qty}>{formatQuantity(item.quantity)}</T>
-              <T style={s.rate}>{money(roundCents(parseAmount(item.unitPrice) * 100))}</T>
-              <T style={s.amount}>{money(lineCents(item))}</T>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={s.totals} wrap={false}>

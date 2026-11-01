@@ -78,20 +78,21 @@ const invoice: Invoice = {
     name: "Northern Lights Food Bank Society",
     contact: "Priya Raman",
     email: "accounts@example.org",
+    phone: "(780) 555-0199",
     address: "8820 51 Ave NW\nEdmonton, AB  T6E 5E8",
   },
   items: [
-    { id: newId(), description: "Discovery workshop and requirements", detail: "Two half-day sessions with program staff", quantity: "8", unitPrice: "145", taxable: true },
-    { id: newId(), description: "Volunteer scheduling web app, phase 1", detail: "Shift sign-up, reminders, admin dashboard", quantity: "42.5", unitPrice: "145", taxable: true },
-    { id: newId(), description: "Hosting and domain, 12 months", detail: "", quantity: "1", unitPrice: "384.00", taxable: true },
-    { id: newId(), description: "Reimbursed stock photography licence", detail: "Billed at cost", quantity: "1", unitPrice: "59.99", taxable: false },
+    { id: newId(), description: "Discovery workshop and requirements", detail: "Two half-day sessions with program staff", billing: "hourly", quantity: "8", unitPrice: "145", taxable: true },
+    { id: newId(), description: "Volunteer scheduling web app, phase 1", detail: "Shift sign-up, reminders, admin dashboard", billing: "flat", quantity: "1", unitPrice: "6200.00", taxable: true },
+    { id: newId(), description: "Hosting and domain", detail: "Monthly plan", billing: "unit", quantity: "12", unitPrice: "32.00", taxable: true },
+    { id: newId(), description: "Reimbursed stock photography licence", detail: "Billed at cost", billing: "flat", quantity: "1", unitPrice: "59.99", taxable: false },
   ],
   taxes: [{ id: newId(), label: "GST", rate: "5" }],
   notes: "Please pay by Interac e-Transfer to billing@example.com, or by cheque payable to Northwind Consulting.\nInvoices unpaid after 30 days accrue interest at 1.5% per month.",
 };
 
 for (let i = 1; i <= extraItems; i++) {
-  invoice.items.push({ id: newId(), description: `Support retainer, week ${i}`, detail: "", quantity: "3", unitPrice: "145", taxable: true });
+  invoice.items.push({ id: newId(), description: `Support retainer, week ${i}`, detail: "", billing: "hourly", quantity: "3", unitPrice: "145", taxable: true });
 }
 
 await renderToFile(

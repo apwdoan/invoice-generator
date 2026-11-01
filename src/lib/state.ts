@@ -5,6 +5,7 @@ import { LATEST_TAX_YEAR, PROVINCE_ORDER, TAX_YEARS, type ProvinceCode } from ".
 import type {
   AppState,
   BrandColors,
+  Billing,
   BusinessProfile,
   Client,
   Invoice,
@@ -19,12 +20,22 @@ export function newId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function emptyItem(): LineItem {
-  return { id: newId(), description: "", detail: "", quantity: "1", unitPrice: "", taxable: true };
+export const BILLING_OPTIONS: { value: Billing; label: string }[] = [
+  { value: "hourly", label: "Hourly" },
+  { value: "flat", label: "Flat rate" },
+  { value: "unit", label: "Per unit" },
+];
+
+export function isBilling(value: unknown): value is Billing {
+  return BILLING_OPTIONS.some((o) => o.value === value);
+}
+
+export function emptyItem(billing: Billing = "hourly"): LineItem {
+  return { id: newId(), description: "", detail: "", billing, quantity: "1", unitPrice: "", taxable: true };
 }
 
 export function emptyClient(): Client {
-  return { name: "", contact: "", email: "", address: "" };
+  return { name: "", contact: "", email: "", phone: "", address: "" };
 }
 
 export interface TaxPreset {
@@ -241,6 +252,7 @@ function hydrateLogo(raw: unknown): Logo | null {
 /**
  * Fills in anything missing from a saved file, so older saves keep loading.
  * Version 1 had one brand colour (`accent`); it becomes all three colour roles.
+ * Clients saved before the phone field get an empty one from `emptyClient`.
  */
 export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile): AppState {
   const base = initialState(defaults);
@@ -260,8 +272,11 @@ export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile
     ...base.invoice,
     ...rawInvoice,
     client: { ...emptyClient(), ...(isObject(rawInvoice.client) ? rawInvoice.client : {}) },
+    // Items saved before billing types existed were quantity times price, so they stay "unit".
     items: Array.isArray(rawInvoice.items)
-      ? rawInvoice.items.filter(isObject).map((item) => ({ ...emptyItem(), ...item }))
+      ? rawInvoice.items
+          .filter(isObject)
+          .map((item) => ({ ...emptyItem(), ...item, billing: isBilling(item.billing) ? item.billing : "unit" }))
       : base.invoice.items,
     taxes: Array.isArray(rawInvoice.taxes)
       ? rawInvoice.taxes.filter(isObject).map((t) => ({ id: newId(), label: "", rate: "", ...t }))

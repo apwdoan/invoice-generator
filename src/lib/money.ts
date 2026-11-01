@@ -15,7 +15,8 @@ export function roundCents(value: number): number {
 }
 
 export function lineCents(item: LineItem): number {
-  return roundCents(parseAmount(item.quantity) * parseAmount(item.unitPrice) * 100);
+  const quantity = item.billing === "flat" ? 1 : parseAmount(item.quantity);
+  return roundCents(quantity * parseAmount(item.unitPrice) * 100);
 }
 
 export interface TaxAmount {
@@ -73,6 +74,16 @@ export function formatMoney(cents: number, currency: string): string {
   }
   // Avoid "-$0.00" from negative zero.
   return fmt.format(cents / 100 || 0);
+}
+
+/** The symbol shown in front of amounts typed in a currency: "$" for CAD, USD and AUD, "€", "£". */
+export function currencySymbol(currency: string): string {
+  try {
+    const parts = new Intl.NumberFormat("en-CA", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).formatToParts(0);
+    return parts.find((p) => p.type === "currency")?.value ?? "";
+  } catch {
+    return "";
+  }
 }
 
 const quantityFormatter = new Intl.NumberFormat("en-CA", { maximumFractionDigits: 3 });

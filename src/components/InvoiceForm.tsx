@@ -121,12 +121,18 @@ export function InvoiceForm({ invoice, clients, hasTaxNumber, onChange, onForget
             onChange={(address) => setClient({ address })}
           />
           <TextField
-            className="span-2"
             label="Email"
             type="email"
             placeholder="Optional"
             value={invoice.client.email}
             onChange={(email) => setClient({ email })}
+          />
+          <TextField
+            label="Phone"
+            type="tel"
+            placeholder="Optional"
+            value={invoice.client.phone}
+            onChange={(phone) => setClient({ phone })}
           />
         </div>
       </Section>
