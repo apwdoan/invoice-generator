@@ -606,15 +606,21 @@ input[type="checkbox"] {
   font-weight: 500;
 }
 
+/* One line tall like the inputs around it (18 + 10 + 2 = 30px), growing a line at a time. */
 .item .item-detail {
-  height: 30px;
+  min-height: 30px;
+  padding: 5px 10px;
   font-size: 13px;
+  line-height: 18px;
+  resize: none;
+  overflow: hidden;
 }
 
-/* Details and the billing type share a row. */
+/* Details and the billing type share a row; the billing type stays at the top as details grow. */
 .item-sub {
   display: grid;
   grid-template-columns: 1fr auto;
+  align-items: start;
   gap: 6px;
 }
 

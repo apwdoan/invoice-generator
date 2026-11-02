@@ -1,11 +1,45 @@
 import {
+  useEffect,
   useId,
+  useLayoutEffect,
+  useRef,
   type CSSProperties,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
+
+/**
+ * A textarea that starts one line tall and grows with its text, so it sits in a row of
+ * inputs but takes as many lines as are typed (Enter adds one).
+ */
+export function GrowingTextArea({ value, ...rest }: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "rows"> & { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const fit = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    // scrollHeight leaves out the borders, which a border-box height includes.
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  };
+  useLayoutEffect(fit, [value]);
+  // Long lines wrap differently once the web fonts load or the field changes width.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      fit();
+    });
+    observer.observe(el);
+    document.fonts?.ready.then(fit);
+    return () => observer.disconnect();
+  }, []);
+  return <textarea ref={ref} rows={1} value={value} {...rest} />;
+}
 
 /** Wraps an input with a currency symbol in front and/or a unit after it ("hrs", "/hr", "days"). */
 export function Adorned({ prefix, suffix, children }: { prefix?: string; suffix?: string; children: ReactNode }) {

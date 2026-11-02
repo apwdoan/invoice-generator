@@ -300,7 +300,7 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
               <View key={item.id} style={s.row} wrap={false}>
                 <View style={s.desc}>
                   <T>{item.description}</T>
-                  {item.detail.trim() !== "" && <T style={s.detail}>{item.detail.trim()}</T>}
+                  {item.detail.trim() !== "" && <T style={s.detail}>{lines(item.detail).join("\n")}</T>}
                 </View>
                 <View style={{ width: COL_AMOUNT }} />
               </View>
@@ -323,7 +323,7 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
                 <View key={item.id} style={s.row} wrap={false}>
                   <View style={s.desc}>
                     <T>{item.description}</T>
-                    {item.detail.trim() !== "" && <T style={s.detail}>{item.detail.trim()}</T>}
+                    {item.detail.trim() !== "" && <T style={s.detail}>{lines(item.detail).join("\n")}</T>}
                     {!item.taxable && taxNames !== "" && <T style={s.note}>No {taxNames} charged</T>}
                   </View>
                   {qtyHeading &&

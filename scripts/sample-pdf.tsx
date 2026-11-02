@@ -89,7 +89,7 @@ const invoice: Invoice = {
   flatFee: args.flat ?? "",
   items: [
     { id: newId(), description: "Discovery workshop and requirements", detail: "Two half-day sessions with program staff", billing: "hourly", quantity: "8", unitPrice: "145", taxable: true },
-    { id: newId(), description: "Volunteer scheduling web app, phase 1", detail: "Shift sign-up, reminders, admin dashboard", billing: "flat", quantity: "1", unitPrice: "6200.00", taxable: true },
+    { id: newId(), description: "Volunteer scheduling web app, phase 1", detail: "Shift sign-up and reminders\nAdmin dashboard for program staff\nTraining session for two coordinators", billing: "flat", quantity: "1", unitPrice: "6200.00", taxable: true },
     { id: newId(), description: "Hosting and domain", detail: "Monthly plan", billing: "unit", quantity: "12", unitPrice: "32.00", taxable: true },
     { id: newId(), description: "Reimbursed stock photography licence", detail: "Billed at cost", billing: "flat", quantity: "1", unitPrice: "59.99", taxable: false },
   ],

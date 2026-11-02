@@ -3,7 +3,7 @@
 A desktop app for making branded invoices and exporting them as PDFs. Built with Tauri 2, React and TypeScript.
 
 - **Branding:** upload your logo (PNG, JPG or SVG) and the invoice takes its colours from it. Business name, contact details and three typefaces. It starts neutral, so any brand fits.
-- **Line items:** bill each item by the hour (hours × hourly rate), as a flat rate, or per unit (quantity × unit price). The invoice's columns adapt: all-hourly invoices show an Hours column, and an invoice of only flat-rate items shows just the amounts. Or switch the invoice to one flat rate: the items are listed without prices and a single amount covers them all.
+- **Line items:** a description plus optional details, which can run to several lines (press Enter for each). Bill each item by the hour (hours × hourly rate), as a flat rate, or per unit (quantity × unit price). The invoice's columns adapt: all-hourly invoices show an Hours column, and an invoice of only flat-rate items shows just the amounts. Or switch the invoice to one flat rate: the items are listed without prices and a single amount covers them all.
 - **Payment terms:** due immediately, net any number of days (the due date follows the issue date), or a custom due date.
 - **Clients:** name, contact person, address, email and phone, saved for reuse on later invoices.
 - **GST/HST number:** printed under your contact details, with a format check for Canadian numbers (`123456789 RT0001`). An optional second registration number covers QST or PST.

@@ -2,7 +2,7 @@ import { useId } from "react";
 import { currencySymbol, flatFeeCents, formatMoney, lineCents, parseAmount } from "../lib/money";
 import { BILLING_OPTIONS, emptyItem, isBilling } from "../lib/state";
 import type { Billing, LineItem, Pricing } from "../lib/types";
-import { Adorned, DownIcon, IconButton, RemoveIcon, UpIcon } from "./fields";
+import { Adorned, DownIcon, GrowingTextArea, IconButton, RemoveIcon, UpIcon } from "./fields";
 
 /** Shows typed prices with at least two decimals ("145" becomes "145.00"), keeping any extra precision. */
 function tidyPrice(input: string): string {
@@ -94,10 +94,10 @@ function ItemRow({
           onChange={(e) => onChange({ description: e.target.value })}
         />
         <div className={flat ? undefined : "item-sub"}>
-          <input
+          <GrowingTextArea
             className="item-detail"
             aria-label={`Item ${n} details`}
-            placeholder="Details (optional)"
+            placeholder="Details (optional, one per line)"
             value={item.detail}
             onChange={(e) => onChange({ detail: e.target.value })}
           />
