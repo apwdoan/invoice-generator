@@ -4,12 +4,14 @@
  *   npm run sample-pdf -- --logo=logo.png --colors=#01183F,#015CE7,#08E9FC
  *   npm run sample-pdf -- --font=serif --size=A4 --items=30
  *   npm run sample-pdf -- --flat=7800 --days=14
+ *   npm run sample-pdf -- --items=12 --fit
  */
 import { renderToFile } from "@react-pdf/renderer";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { FONT_FILES, registerInvoiceFonts } from "../src/pdf/fonts";
 import { InvoiceDocument } from "../src/pdf/InvoiceDocument";
+import { renderInvoicePdf } from "../src/pdf/render";
 import { dueDateFor } from "../src/lib/dates";
 import { defaultProfile, logoHeightFor, newId } from "../src/lib/state";
 import type { BusinessProfile, Invoice, InvoiceFont, PageSize } from "../src/lib/types";
@@ -29,9 +31,9 @@ registerInvoiceFonts({
 const args = Object.fromEntries(
   process.argv
     .slice(2)
-    .map((a) => /^--(\w+)=(.*)$/.exec(a))
+    .map((a) => /^--(\w+)(?:=(.*))?$/.exec(a))
     .filter((m): m is RegExpExecArray => m !== null)
-    .map((m) => [m[1], m[2]]),
+    .map((m) => [m[1], m[2] ?? "true"]),
 );
 const logoPath = args.logo;
 // Logo colours are extracted in the app; here they are passed in as primary,accent,highlight.
@@ -101,8 +103,16 @@ for (let i = 1; i <= extraItems; i++) {
   invoice.items.push({ id: newId(), description: `Support retainer, week ${i}`, detail: "", billing: "hourly", quantity: "3", unitPrice: "145", taxable: true });
 }
 
-await renderToFile(
-  <InvoiceDocument profile={profile} invoice={invoice} pageSize={size as PageSize} />,
-  "sample-invoice.pdf",
-);
-console.log("Wrote sample-invoice.pdf");
+if (args.fit !== undefined) {
+  // --fit shrinks the content to one page the way the app's "Fit to one page" does.
+  const result = await renderInvoicePdf({ profile, invoice, pageSize: size as PageSize }, { fitOnePage: true });
+  writeFileSync("sample-invoice.pdf", result.bytes);
+  const note = result.tooLong ? ", too long to fit on one page" : result.scale < 1 ? `, scaled to ${Math.round(result.scale * 100)}%` : "";
+  console.log(`Wrote sample-invoice.pdf (${result.pages} ${result.pages === 1 ? "page" : "pages"}${note})`);
+} else {
+  await renderToFile(
+    <InvoiceDocument profile={profile} invoice={invoice} pageSize={size as PageSize} />,
+    "sample-invoice.pdf",
+  );
+  console.log("Wrote sample-invoice.pdf");
+}

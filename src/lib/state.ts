@@ -130,6 +130,7 @@ export const defaultProfile: BusinessProfile = {
 
 export const defaultSettings: Settings = {
   pageSize: "LETTER",
+  fitOnePage: true,
   appearance: "system",
   numberPrefix: "INV-",
   nextNumber: 1,
@@ -279,6 +280,7 @@ export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile
   }
   const settings = { ...base.settings, ...(isObject(raw.settings) ? raw.settings : {}) } as Settings;
   if (!["system", "light", "dark"].includes(settings.appearance)) settings.appearance = "system";
+  if (typeof settings.fitOnePage !== "boolean") settings.fitOnePage = true;
   const rawInvoice = isObject(raw.invoice) ? raw.invoice : {};
   // Fixed terms ("net15", "net30", "net45", "net60") became Net with a number of days.
   const fixedNet = /^net(\d+)$/.exec(String(rawInvoice.terms ?? ""));

@@ -10,7 +10,7 @@ const MAX_ZOOM = 1.45;
 interface Props {
   /** The exact PDF that Export would save. */
   bytes: Uint8Array | null;
-  onPageCount: (count: number) => void;
+  onPageCount?: (count: number) => void;
   onError: (message: string) => void;
 }
 
@@ -67,7 +67,7 @@ export function PdfPreview({ bytes, onPageCount, onError }: Props) {
       }
       if (!cancelled && pages.current) {
         pages.current.replaceChildren(...sheets);
-        onPageCount(doc.numPages);
+        onPageCount?.(doc.numPages);
       }
     })().catch((err: unknown) => {
       if (!cancelled) onError(err instanceof Error ? err.message : String(err));

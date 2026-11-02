@@ -104,6 +104,8 @@ export interface Invoice {
 
 export interface Settings {
   pageSize: PageSize;
+  /** Shrink the invoice's content as needed to keep it on one page. */
+  fitOnePage: boolean;
   appearance: Appearance;
   numberPrefix: string;
   nextNumber: number;

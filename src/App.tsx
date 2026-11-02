@@ -29,7 +29,8 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [previewBytes, setPreviewBytes] = useState<Uint8Array | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [pageCount, setPageCount] = useState(1);
+  // The preview's page count, and how much its content was shrunk to fit one page, if at all.
+  const [layout, setLayout] = useState({ pages: 1, scale: 1, tooLong: false });
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -72,23 +73,26 @@ export default function App() {
   const profile = state?.profile;
   const invoice = state?.invoice;
   const pageSize = state?.settings.pageSize;
+  const fitOnePage = state?.settings.fitOnePage;
   useEffect(() => {
     if (!profile || !invoice || !pageSize) return;
-    let cancelled = false;
+    // Aborting also stops a fit-to-one-page search that a newer edit has made pointless.
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      renderInvoicePdf({ profile, invoice, pageSize })
-        .then((bytes) => {
-          if (cancelled) return;
-          setPreviewBytes(bytes);
+      renderInvoicePdf({ profile, invoice, pageSize }, { fitOnePage, signal: controller.signal })
+        .then((result) => {
+          if (controller.signal.aborted) return;
+          setPreviewBytes(result.bytes);
+          setLayout({ pages: result.pages, scale: result.scale, tooLong: result.tooLong });
           setPreviewError(null);
         })
-        .catch((err) => !cancelled && setPreviewError(errorText(err)));
+        .catch((err) => !controller.signal.aborted && setPreviewError(errorText(err)));
     }, 180);
     return () => {
-      cancelled = true;
+      controller.abort();
       clearTimeout(timer);
     };
-  }, [profile, invoice, pageSize]);
+  }, [profile, invoice, pageSize, fitOnePage]);
 
   const updateInvoice = useCallback((next: Invoice) => setState((s) => (s ? { ...s, invoice: next } : s)), []);
   const updateProfile = useCallback(
@@ -114,11 +118,10 @@ export default function App() {
     setExporting(true);
     setNotice(null);
     try {
-      const bytes = await renderInvoicePdf({
-        profile: state.profile,
-        invoice: state.invoice,
-        pageSize: state.settings.pageSize,
-      });
+      const { bytes } = await renderInvoicePdf(
+        { profile: state.profile, invoice: state.invoice, pageSize: state.settings.pageSize },
+        { fitOnePage: state.settings.fitOnePage },
+      );
       const name = safeFileName(`${state.invoice.number} ${state.invoice.client.name}`);
       const path = await exportPdf(bytes, name);
       if (path) {
@@ -265,24 +268,36 @@ export default function App() {
           <div className="desk-view" hidden={tab === "tax"}>
             <div className="desk-toolbar">
               <span className="page-count">
-                {pageCount} {pageCount === 1 ? "page" : "pages"}
+                {layout.pages} {layout.pages === 1 ? "page" : "pages"}
+                {layout.scale < 1 && `, scaled to ${Math.round(layout.scale * 100)}%`}
+                {layout.tooLong && ", too long to fit on one"}
               </span>
-              <div className="segmented" role="radiogroup" aria-label="Paper size">
-                {(["LETTER", "A4"] as PageSize[]).map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    role="radio"
-                    aria-checked={state.settings.pageSize === size}
-                    onClick={() => updateSettings({ pageSize: size })}
-                  >
-                    {size === "LETTER" ? "Letter" : "A4"}
-                  </button>
-                ))}
+              <div className="toolbar-controls">
+                <label className="toolbar-check" title="Shrink the content as needed to keep the invoice on one page">
+                  <input
+                    type="checkbox"
+                    checked={state.settings.fitOnePage}
+                    onChange={(e) => updateSettings({ fitOnePage: e.target.checked })}
+                  />
+                  Fit to one page
+                </label>
+                <div className="segmented" role="radiogroup" aria-label="Paper size">
+                  {(["LETTER", "A4"] as PageSize[]).map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      role="radio"
+                      aria-checked={state.settings.pageSize === size}
+                      onClick={() => updateSettings({ pageSize: size })}
+                    >
+                      {size === "LETTER" ? "Letter" : "A4"}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {previewError && <p className="preview-error">The preview could not be drawn: {previewError}</p>}
-            <PdfPreview bytes={previewBytes} onPageCount={setPageCount} onError={onPreviewError} />
+            <PdfPreview bytes={previewBytes} onError={onPreviewError} />
           </div>
 
           {notice && (
