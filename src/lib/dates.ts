@@ -1,13 +1,23 @@
 import type { PaymentTerms } from "./types";
 
-export const TERMS: { value: PaymentTerms; label: string; days: number | null }[] = [
-  { value: "receipt", label: "Due on receipt", days: 0 },
-  { value: "net15", label: "Net 15 days", days: 15 },
-  { value: "net30", label: "Net 30 days", days: 30 },
-  { value: "net45", label: "Net 45 days", days: 45 },
-  { value: "net60", label: "Net 60 days", days: 60 },
-  { value: "custom", label: "Custom date", days: null },
+export const TERMS: { value: PaymentTerms; label: string }[] = [
+  { value: "receipt", label: "Due immediately" },
+  { value: "net", label: "Net" },
+  { value: "custom", label: "Custom date" },
 ];
+
+export const DEFAULT_NET_DAYS = "30";
+
+export function isTerms(value: unknown): value is PaymentTerms {
+  return TERMS.some((t) => t.value === value);
+}
+
+/** Whole days from what was typed ("30" is 30). Blank or anything else is null. */
+export function parseDays(input: string): number | null {
+  const trimmed = String(input).trim();
+  if (!/^\d{1,4}$/.test(trimmed)) return null;
+  return Number(trimmed);
+}
 
 /** Today's local date as YYYY-MM-DD. */
 export function todayIso(): string {
@@ -29,9 +39,13 @@ export function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Recomputes the due date unless the terms are custom. */
-export function dueDateFor(issueDate: string, terms: PaymentTerms, current: string): string {
-  const days = TERMS.find((t) => t.value === terms)?.days;
+/**
+ * The due date for the terms. Custom terms keep the current date, as does a
+ * net invoice while its days field is blank.
+ */
+export function dueDateFor(issueDate: string, terms: PaymentTerms, netDays: string, current: string): string {
+  if (terms === "receipt") return issueDate;
+  const days = terms === "net" ? parseDays(netDays) : null;
   return days == null ? current || issueDate : addDays(issueDate, days);
 }
 
@@ -47,6 +61,12 @@ export function formatDate(iso: string): string {
   return d ? dateFormatter.format(d) : "";
 }
 
-export function termsLabel(terms: PaymentTerms): string {
-  return TERMS.find((t) => t.value === terms)?.label ?? "";
+/** How the terms read on the invoice: "Due immediately", "Net 21 days". Custom dates need no label. */
+export function termsLabel(terms: PaymentTerms, netDays: string): string {
+  if (terms === "receipt") return "Due immediately";
+  if (terms !== "net") return "";
+  const days = parseDays(netDays);
+  if (days == null) return "";
+  if (days === 0) return "Due immediately";
+  return `Net ${days} ${days === 1 ? "day" : "days"}`;
 }

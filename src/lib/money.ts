@@ -32,19 +32,33 @@ export interface Totals {
   total: number;
 }
 
-/** Items that should appear on the invoice: anything with a description or a non-zero amount. */
-export function billableItems(items: LineItem[]): LineItem[] {
-  return items.filter((item) => item.description.trim() !== "" || lineCents(item) !== 0);
+/**
+ * Items that should appear on the invoice: anything with a description or a non-zero amount.
+ * Under one flat rate the items have no amounts of their own, so any item with text counts.
+ */
+export function billableItems(invoice: Pick<Invoice, "items" | "pricing">): LineItem[] {
+  if (invoice.pricing === "flat") {
+    return invoice.items.filter((item) => item.description.trim() !== "" || item.detail.trim() !== "");
+  }
+  return invoice.items.filter((item) => item.description.trim() !== "" || lineCents(item) !== 0);
 }
 
+export function flatFeeCents(invoice: Pick<Invoice, "flatFee">): number {
+  return roundCents(parseAmount(invoice.flatFee) * 100);
+}
+
+/** One flat rate is taxed as a whole; per-item pricing taxes only the items marked taxable. */
 export function computeTotals(invoice: Invoice): Totals {
-  const items = billableItems(invoice.items);
   let subtotal = 0;
   let taxableBase = 0;
-  for (const item of items) {
-    const cents = lineCents(item);
-    subtotal += cents;
-    if (item.taxable) taxableBase += cents;
+  if (invoice.pricing === "flat") {
+    subtotal = taxableBase = flatFeeCents(invoice);
+  } else {
+    for (const item of billableItems(invoice)) {
+      const cents = lineCents(item);
+      subtotal += cents;
+      if (item.taxable) taxableBase += cents;
+    }
   }
   const taxes = invoice.taxes
     .filter((tax) => tax.label.trim() !== "" || parseAmount(tax.rate) !== 0)

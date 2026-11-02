@@ -1,8 +1,8 @@
-import type { CSSProperties, ReactNode } from "react";
-import { currencySymbol, formatMoney, lineCents, parseAmount } from "../lib/money";
+import { useId } from "react";
+import { currencySymbol, flatFeeCents, formatMoney, lineCents, parseAmount } from "../lib/money";
 import { BILLING_OPTIONS, emptyItem, isBilling } from "../lib/state";
-import type { Billing, LineItem } from "../lib/types";
-import { DownIcon, IconButton, RemoveIcon, UpIcon } from "./fields";
+import type { Billing, LineItem, Pricing } from "../lib/types";
+import { Adorned, DownIcon, IconButton, RemoveIcon, UpIcon } from "./fields";
 
 /** Shows typed prices with at least two decimals ("145" becomes "145.00"), keeping any extra precision. */
 function tidyPrice(input: string): string {
@@ -34,34 +34,16 @@ function switchBilling(item: LineItem, billing: Billing): Partial<LineItem> {
   return { billing };
 }
 
-/** An input with a currency symbol in front and/or a unit after it. */
-function Adorned({ prefix, suffix, children }: { prefix?: string; suffix?: string; children: ReactNode }) {
-  return (
-    <div
-      className={`adorned ${prefix ? "has-prefix" : ""}`}
-      style={suffix ? ({ "--suffix-width": `calc(${suffix.length}ch + 4px)` } as CSSProperties) : undefined}
-    >
-      {prefix && (
-        <span className="prefix" aria-hidden="true">
-          {prefix}
-        </span>
-      )}
-      {children}
-      {suffix && (
-        <span className="suffix" aria-hidden="true">
-          {suffix}
-        </span>
-      )}
-    </div>
-  );
-}
-
 interface Props {
   items: LineItem[];
   currency: string;
   /** e.g. "GST" or "GST/PST"; empty when no tax is charged. */
   taxName: string;
+  pricing: Pricing;
+  /** The one price for every item, used when pricing is "flat". */
+  flatFee: string;
   onChange: (items: LineItem[]) => void;
+  onFlatFeeChange: (flatFee: string) => void;
 }
 
 function ItemRow({
@@ -70,6 +52,7 @@ function ItemRow({
   count,
   currency,
   taxName,
+  flat,
   onChange,
   onRemove,
   onMove,
@@ -79,6 +62,8 @@ function ItemRow({
   count: number;
   currency: string;
   taxName: string;
+  /** Covered by the invoice's one flat rate: no billing type, price or tax of its own. */
+  flat: boolean;
   onChange: (patch: Partial<LineItem>) => void;
   onRemove: () => void;
   onMove: (delta: number) => void;
@@ -99,7 +84,7 @@ function ItemRow({
   );
 
   return (
-    <li className="item">
+    <li className={`item ${flat ? "item-flat" : ""}`}>
       <div className="item-main">
         <input
           className="item-description"
@@ -108,7 +93,7 @@ function ItemRow({
           value={item.description}
           onChange={(e) => onChange({ description: e.target.value })}
         />
-        <div className="item-sub">
+        <div className={flat ? undefined : "item-sub"}>
           <input
             className="item-detail"
             aria-label={`Item ${n} details`}
@@ -116,56 +101,60 @@ function ItemRow({
             value={item.detail}
             onChange={(e) => onChange({ detail: e.target.value })}
           />
-          <select
-            className="item-billing"
-            aria-label={`Item ${n} billing`}
-            title="How this item is priced"
-            value={item.billing}
-            onChange={(e) => {
-              const billing = e.target.value;
-              if (isBilling(billing)) onChange(switchBilling(item, billing));
-            }}
-          >
-            {BILLING_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="item-numbers">
-          {units ? (
-            <>
-              <Adorned suffix={units.quantitySuffix}>
-                <input
-                  className="num qty"
-                  aria-label={`Item ${n} ${units.quantity}`}
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={item.quantity}
-                  onChange={(e) => onChange({ quantity: e.target.value })}
-                />
-              </Adorned>
-              <span className="times" aria-hidden="true">
-                ×
-              </span>
-              <Adorned prefix={symbol} suffix={units.priceSuffix}>
-                {price(units.price)}
-              </Adorned>
-            </>
-          ) : (
-            <Adorned prefix={symbol}>{price("flat amount")}</Adorned>
+          {!flat && (
+            <select
+              className="item-billing"
+              aria-label={`Item ${n} billing`}
+              title="How this item is priced"
+              value={item.billing}
+              onChange={(e) => {
+                const billing = e.target.value;
+                if (isBilling(billing)) onChange(switchBilling(item, billing));
+              }}
+            >
+              {BILLING_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           )}
-          {taxName && (
-            <label className="item-tax" title={`Charge ${taxName} on this item`}>
-              <input type="checkbox" checked={item.taxable} onChange={(e) => onChange({ taxable: e.target.checked })} />
-              {taxName}
-            </label>
-          )}
-          <output className="item-amount" aria-label={`Item ${n} amount`}>
-            {formatMoney(lineCents(item), currency)}
-          </output>
         </div>
+        {!flat && (
+          <div className="item-numbers">
+            {units ? (
+              <>
+                <Adorned suffix={units.quantitySuffix}>
+                  <input
+                    className="num qty"
+                    aria-label={`Item ${n} ${units.quantity}`}
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={item.quantity}
+                    onChange={(e) => onChange({ quantity: e.target.value })}
+                  />
+                </Adorned>
+                <span className="times" aria-hidden="true">
+                  ×
+                </span>
+                <Adorned prefix={symbol} suffix={units.priceSuffix}>
+                  {price(units.price)}
+                </Adorned>
+              </>
+            ) : (
+              <Adorned prefix={symbol}>{price("flat amount")}</Adorned>
+            )}
+            {taxName && (
+              <label className="item-tax" title={`Charge ${taxName} on this item`}>
+                <input type="checkbox" checked={item.taxable} onChange={(e) => onChange({ taxable: e.target.checked })} />
+                {taxName}
+              </label>
+            )}
+            <output className="item-amount" aria-label={`Item ${n} amount`}>
+              {formatMoney(lineCents(item), currency)}
+            </output>
+          </div>
+        )}
       </div>
       <div className="item-tools">
         <IconButton label="Move up" onClick={() => onMove(-1)} disabled={index === 0}>
@@ -182,7 +171,35 @@ function ItemRow({
   );
 }
 
-export function LineItems({ items, currency, taxName, onChange }: Props) {
+/** The one price for every item on a flat-rate invoice. */
+function FlatFee({ value, currency, count, onChange }: { value: string; currency: string; count: number; onChange: (value: string) => void }) {
+  const id = useId();
+  return (
+    <div className="flat-fee">
+      <div>
+        <label htmlFor={id}>Flat rate</label>
+        <p className="hint">{count === 1 ? "Covers the item above." : "Covers every item above."}</p>
+      </div>
+      <Adorned prefix={currencySymbol(currency)}>
+        <input
+          id={id}
+          className="num"
+          inputMode="decimal"
+          placeholder="0.00"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => onChange(tidyPrice(value))}
+        />
+      </Adorned>
+      <output className="item-amount" htmlFor={id} aria-label="Flat rate amount">
+        {formatMoney(flatFeeCents({ flatFee: value }), currency)}
+      </output>
+    </div>
+  );
+}
+
+export function LineItems({ items, currency, taxName, pricing, flatFee, onChange, onFlatFeeChange }: Props) {
+  const flat = pricing === "flat";
   const update = (id: string, patch: Partial<LineItem>) =>
     onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
 
@@ -210,6 +227,7 @@ export function LineItems({ items, currency, taxName, onChange }: Props) {
             count={items.length}
             currency={currency}
             taxName={taxName}
+            flat={flat}
             onChange={(patch) => update(item.id, patch)}
             onRemove={() => remove(item.id)}
             onMove={(delta) => move(index, delta)}
@@ -220,6 +238,7 @@ export function LineItems({ items, currency, taxName, onChange }: Props) {
       <button type="button" className="text-button" onClick={() => onChange([...items, emptyItem(items[items.length - 1]?.billing)])}>
         + Add item
       </button>
+      {flat && <FlatFee value={flatFee} currency={currency} count={items.length} onChange={onFlatFeeChange} />}
     </>
   );
 }

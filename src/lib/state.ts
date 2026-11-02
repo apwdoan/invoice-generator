@@ -1,5 +1,5 @@
 import { isHexColor } from "./color";
-import { dueDateFor, todayIso } from "./dates";
+import { DEFAULT_NET_DAYS, dueDateFor, isTerms, todayIso } from "./dates";
 import { computeTotals } from "./money";
 import { LATEST_TAX_YEAR, PROVINCE_ORDER, TAX_YEARS, type ProvinceCode } from "./taxRates";
 import type {
@@ -11,6 +11,7 @@ import type {
   Invoice,
   LineItem,
   Logo,
+  Pricing,
   Settings,
   TaxLine,
   TaxSettings,
@@ -29,6 +30,11 @@ export const BILLING_OPTIONS: { value: Billing; label: string }[] = [
 export function isBilling(value: unknown): value is Billing {
   return BILLING_OPTIONS.some((o) => o.value === value);
 }
+
+export const PRICING_OPTIONS: { value: Pricing; label: string }[] = [
+  { value: "items", label: "Per item" },
+  { value: "flat", label: "One flat rate" },
+];
 
 export function emptyItem(billing: Billing = "hourly"): LineItem {
   return { id: newId(), description: "", detail: "", billing, quantity: "1", unitPrice: "", taxable: true };
@@ -134,17 +140,22 @@ export function formatInvoiceNumber(settings: Settings, n: number): string {
   return `${settings.numberPrefix}${String(n).padStart(settings.numberDigits, "0")}`;
 }
 
+/** A new invoice keeps the previous one's terms, currency, taxes and way of pricing, but not its flat rate. */
 export function newInvoice(profile: BusinessProfile, settings: Settings, previous?: Invoice): Invoice {
   const issueDate = todayIso();
-  const terms = previous?.terms ?? "net30";
+  const terms = previous?.terms ?? "net";
+  const netDays = previous?.netDays ?? DEFAULT_NET_DAYS;
   return {
     number: formatInvoiceNumber(settings, settings.nextNumber),
     reference: "",
     issueDate,
     terms,
-    dueDate: dueDateFor(issueDate, terms, issueDate),
+    netDays,
+    dueDate: dueDateFor(issueDate, terms, netDays, issueDate),
     currency: previous?.currency ?? "CAD",
     client: emptyClient(),
+    pricing: previous?.pricing ?? "items",
+    flatFee: "",
     items: [emptyItem()],
     taxes: previous ? previous.taxes.map((t) => ({ ...t, id: newId() })) : taxesFromPreset(TAX_PRESETS[0]),
     notes: profile.defaultNotes,
@@ -253,6 +264,7 @@ function hydrateLogo(raw: unknown): Logo | null {
  * Fills in anything missing from a saved file, so older saves keep loading.
  * Version 1 had one brand colour (`accent`); it becomes all three colour roles.
  * Clients saved before the phone field get an empty one from `emptyClient`.
+ * Invoices saved before flat-rate pricing are priced per item.
  */
 export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile): AppState {
   const base = initialState(defaults);
@@ -268,9 +280,15 @@ export function hydrate(raw: unknown, defaults: BusinessProfile = defaultProfile
   const settings = { ...base.settings, ...(isObject(raw.settings) ? raw.settings : {}) } as Settings;
   if (!["system", "light", "dark"].includes(settings.appearance)) settings.appearance = "system";
   const rawInvoice = isObject(raw.invoice) ? raw.invoice : {};
+  // Fixed terms ("net15", "net30", "net45", "net60") became Net with a number of days.
+  const fixedNet = /^net(\d+)$/.exec(String(rawInvoice.terms ?? ""));
   const invoice = {
     ...base.invoice,
     ...rawInvoice,
+    terms: fixedNet ? "net" : isTerms(rawInvoice.terms) ? rawInvoice.terms : base.invoice.terms,
+    netDays: fixedNet ? fixedNet[1] : typeof rawInvoice.netDays === "string" ? rawInvoice.netDays : DEFAULT_NET_DAYS,
+    pricing: rawInvoice.pricing === "flat" ? "flat" : "items",
+    flatFee: typeof rawInvoice.flatFee === "string" ? rawInvoice.flatFee : "",
     client: { ...emptyClient(), ...(isObject(rawInvoice.client) ? rawInvoice.client : {}) },
     // Items saved before billing types existed were quantity times price, so they stay "unit".
     items: Array.isArray(rawInvoice.items)

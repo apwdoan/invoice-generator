@@ -94,9 +94,12 @@ function Band({ stops, width }: { stops: string[]; width: number }) {
 export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentProps) {
   const theme = invoiceTheme(profile.colors);
   const family = FONT_FAMILY[profile.font] ?? FONT_FAMILY.sans;
-  const items = billableItems(invoice.items);
+  const items = billableItems(invoice);
+  // One flat rate for everything lists the items without amounts, then the rate.
+  const flatInvoice = invoice.pricing === "flat";
   // An invoice of only flat-rate items has no quantities or rates to show.
-  const qtyHeading = quantityHeading(items);
+  const qtyHeading = flatInvoice ? null : quantityHeading(items);
+  const terms = termsLabel(invoice.terms, invoice.netDays);
   const totals = computeTotals(invoice);
   const money = (cents: number) => formatMoney(cents, invoice.currency);
   const logo = logoBox(profile);
@@ -271,7 +274,7 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
             <T>{formatDate(invoice.issueDate)}</T>
             <T style={[s.label, { marginTop: 8 }]}>Due</T>
             <T>{formatDate(invoice.dueDate)}</T>
-            {invoice.terms !== "custom" && <T style={[s.small, s.muted]}>{termsLabel(invoice.terms)}</T>}
+            {terms !== "" && <T style={[s.small, s.muted]}>{terms}</T>}
           </View>
           <View style={s.due}>
             <T style={s.label}>Amount due</T>
@@ -291,38 +294,60 @@ export function InvoiceDocument({ profile, invoice, pageSize }: InvoiceDocumentP
             )}
             <T style={[s.th, s.amount]}>Amount</T>
           </View>
-          {items.length === 0 && <T style={s.empty}>No line items yet.</T>}
-          {items.map((item) => {
-            const price = money(roundCents(parseAmount(item.unitPrice) * 100));
-            return (
+          {items.length === 0 && !flatInvoice && <T style={s.empty}>No line items yet.</T>}
+          {flatInvoice &&
+            items.map((item) => (
               <View key={item.id} style={s.row} wrap={false}>
                 <View style={s.desc}>
                   <T>{item.description}</T>
                   {item.detail.trim() !== "" && <T style={s.detail}>{item.detail.trim()}</T>}
-                  {!item.taxable && taxNames !== "" && <T style={s.note}>No {taxNames} charged</T>}
                 </View>
-                {qtyHeading &&
-                  (item.billing === "flat" ? (
-                    <>
-                      <View style={{ width: COL_QTY }} />
-                      <T style={[s.rate, s.muted]}>Flat rate</T>
-                    </>
-                  ) : (
-                    <>
-                      <T style={s.qty}>
-                        {formatQuantity(item.quantity)}
-                        {item.billing === "hourly" && qtyHeading === "Qty" ? " hrs" : ""}
-                      </T>
-                      <T style={s.rate}>
-                        {price}
-                        {item.billing === "hourly" && <T style={s.muted}>/hr</T>}
-                      </T>
-                    </>
-                  ))}
-                <T style={s.amount}>{money(lineCents(item))}</T>
+                <View style={{ width: COL_AMOUNT }} />
               </View>
-            );
-          })}
+            ))}
+          {flatInvoice && (
+            <View style={s.row} wrap={false}>
+              <View style={s.desc}>
+                <T style={{ fontWeight: 600 }}>Flat rate</T>
+                {items.length > 0 && (
+                  <T style={s.detail}>{items.length === 1 ? "Covers the item above" : "Covers all items above"}</T>
+                )}
+              </View>
+              <T style={[s.amount, { fontWeight: 600 }]}>{money(totals.subtotal)}</T>
+            </View>
+          )}
+          {!flatInvoice &&
+            items.map((item) => {
+              const price = money(roundCents(parseAmount(item.unitPrice) * 100));
+              return (
+                <View key={item.id} style={s.row} wrap={false}>
+                  <View style={s.desc}>
+                    <T>{item.description}</T>
+                    {item.detail.trim() !== "" && <T style={s.detail}>{item.detail.trim()}</T>}
+                    {!item.taxable && taxNames !== "" && <T style={s.note}>No {taxNames} charged</T>}
+                  </View>
+                  {qtyHeading &&
+                    (item.billing === "flat" ? (
+                      <>
+                        <View style={{ width: COL_QTY }} />
+                        <T style={[s.rate, s.muted]}>Flat rate</T>
+                      </>
+                    ) : (
+                      <>
+                        <T style={s.qty}>
+                          {formatQuantity(item.quantity)}
+                          {item.billing === "hourly" && qtyHeading === "Qty" ? " hrs" : ""}
+                        </T>
+                        <T style={s.rate}>
+                          {price}
+                          {item.billing === "hourly" && <T style={s.muted}>/hr</T>}
+                        </T>
+                      </>
+                    ))}
+                  <T style={s.amount}>{money(lineCents(item))}</T>
+                </View>
+              );
+            })}
         </View>
 
         <View style={s.totals} wrap={false}>

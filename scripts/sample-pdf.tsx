@@ -3,12 +3,14 @@
  * layout changes quickly:
  *   npm run sample-pdf -- --logo=logo.png --colors=#01183F,#015CE7,#08E9FC
  *   npm run sample-pdf -- --font=serif --size=A4 --items=30
+ *   npm run sample-pdf -- --flat=7800 --days=14
  */
 import { renderToFile } from "@react-pdf/renderer";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { FONT_FILES, registerInvoiceFonts } from "../src/pdf/fonts";
 import { InvoiceDocument } from "../src/pdf/InvoiceDocument";
+import { dueDateFor } from "../src/lib/dates";
 import { defaultProfile, logoHeightFor, newId } from "../src/lib/state";
 import type { BusinessProfile, Invoice, InvoiceFont, PageSize } from "../src/lib/types";
 
@@ -71,8 +73,9 @@ const invoice: Invoice = {
   number: "INV-0042",
   reference: "PO-7781",
   issueDate: "2026-10-03",
-  terms: "net30",
-  dueDate: "2026-11-02",
+  terms: "net",
+  netDays: args.days ?? "30",
+  dueDate: dueDateFor("2026-10-03", "net", args.days ?? "30", ""),
   currency: "CAD",
   client: {
     name: "Northern Lights Food Bank Society",
@@ -81,6 +84,9 @@ const invoice: Invoice = {
     phone: "(780) 555-0199",
     address: "8820 51 Ave NW\nEdmonton, AB  T6E 5E8",
   },
+  // --flat=7800 bills everything at one flat rate instead of item by item.
+  pricing: args.flat ? "flat" : "items",
+  flatFee: args.flat ?? "",
   items: [
     { id: newId(), description: "Discovery workshop and requirements", detail: "Two half-day sessions with program staff", billing: "hourly", quantity: "8", unitPrice: "145", taxable: true },
     { id: newId(), description: "Volunteer scheduling web app, phase 1", detail: "Shift sign-up, reminders, admin dashboard", billing: "flat", quantity: "1", unitPrice: "6200.00", taxable: true },

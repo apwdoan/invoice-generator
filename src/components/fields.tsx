@@ -1,4 +1,33 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  useId,
+  type CSSProperties,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
+
+/** Wraps an input with a currency symbol in front and/or a unit after it ("hrs", "/hr", "days"). */
+export function Adorned({ prefix, suffix, children }: { prefix?: string; suffix?: string; children: ReactNode }) {
+  return (
+    <div
+      className={`adorned ${prefix ? "has-prefix" : ""}`}
+      style={suffix ? ({ "--suffix-width": `calc(${suffix.length}ch + 4px)` } as CSSProperties) : undefined}
+    >
+      {prefix && (
+        <span className="prefix" aria-hidden="true">
+          {prefix}
+        </span>
+      )}
+      {children}
+      {suffix && (
+        <span className="suffix" aria-hidden="true">
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+}
 
 interface FieldShell {
   label: string;

@@ -4,7 +4,10 @@ export type PageSize = "LETTER" | "A4";
 export type InvoiceFont = "sans" | "serif" | "mono";
 /** The app's colour theme. The invoice itself is always printed on white. */
 export type Appearance = "system" | "light" | "dark";
-export type PaymentTerms = "receipt" | "net15" | "net30" | "net45" | "net60" | "custom";
+/** Due on the issue date, a number of days after it (`Invoice.netDays`), or on a date picked by hand. */
+export type PaymentTerms = "receipt" | "net" | "custom";
+/** Each item priced on its own, or one flat rate (`Invoice.flatFee`) covering every item. */
+export type Pricing = "items" | "flat";
 
 export interface Logo {
   /** PNG or JPEG data URL, normalised on upload so react-pdf can always embed it. */
@@ -86,9 +89,14 @@ export interface Invoice {
   reference: string;
   issueDate: string;
   terms: PaymentTerms;
+  /** Days from the issue date to the due date when the terms are "net". Kept as typed. */
+  netDays: string;
   dueDate: string;
   currency: string;
   client: Client;
+  pricing: Pricing;
+  /** The one price for every item when pricing is "flat". Item prices are kept but ignored. */
+  flatFee: string;
   items: LineItem[];
   taxes: TaxLine[];
   notes: string;

@@ -705,6 +705,47 @@ input[type="checkbox"] {
   opacity: 0.55;
 }
 
+/* The one flat rate for every item, lined up with the item amounts above it. */
+.flat-fee {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--track-soft);
+}
+
+.flat-fee > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.flat-fee label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.flat-fee .hint {
+  margin-top: 1px;
+}
+
+.flat-fee input {
+  width: 124px;
+}
+
+.flat-fee .item-amount {
+  min-width: 96px;
+  text-align: right;
+}
+
+/* Net terms: the select and the number of days side by side. */
+.terms-net {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 6px;
+}
+
 .item:hover .item-tools,
 .item:focus-within .item-tools {
   opacity: 1;

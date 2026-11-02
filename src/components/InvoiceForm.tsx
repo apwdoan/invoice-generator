@@ -1,8 +1,9 @@
-import { dueDateFor, TERMS } from "../lib/dates";
-import { CURRENCIES } from "../lib/money";
-import { emptyClient } from "../lib/state";
-import type { Client, Invoice, PaymentTerms } from "../lib/types";
-import { Section, SelectField, TextArea, TextField } from "./fields";
+import { useId } from "react";
+import { DEFAULT_NET_DAYS, dueDateFor, isTerms, TERMS } from "../lib/dates";
+import { computeTotals, CURRENCIES } from "../lib/money";
+import { emptyClient, PRICING_OPTIONS } from "../lib/state";
+import type { Client, Invoice, PaymentTerms, Pricing } from "../lib/types";
+import { Adorned, Section, SelectField, TextArea, TextField } from "./fields";
 import { LineItems } from "./LineItems";
 import { TaxEditor } from "./TaxEditor";
 
@@ -23,6 +24,19 @@ export function InvoiceForm({ invoice, clients, hasTaxNumber, onChange, onForget
     .filter(Boolean)
     .join("/");
   const savedMatch = clients.find((c) => c.name.trim().toLowerCase() === invoice.client.name.trim().toLowerCase());
+  const termsId = useId();
+
+  const setTerms = (terms: PaymentTerms, netDays = invoice.netDays) =>
+    set({ terms, netDays, dueDate: dueDateFor(invoice.issueDate, terms, netDays, invoice.dueDate) });
+
+  /** Switching to one flat rate starts it at the current total of the items, so the invoice doesn't change. */
+  const setPricing = (pricing: Pricing) => {
+    if (pricing === invoice.pricing) return;
+    const subtotal = computeTotals(invoice).subtotal;
+    const flatFee =
+      pricing === "flat" && invoice.flatFee.trim() === "" && subtotal > 0 ? (subtotal / 100).toFixed(2) : invoice.flatFee;
+    set({ pricing, flatFee });
+  };
 
   return (
     <>
@@ -39,22 +53,43 @@ export function InvoiceForm({ invoice, clients, hasTaxNumber, onChange, onForget
             label="Issue date"
             type="date"
             value={invoice.issueDate}
-            onChange={(issueDate) => set({ issueDate, dueDate: dueDateFor(issueDate, invoice.terms, invoice.dueDate) })}
+            onChange={(issueDate) =>
+              set({ issueDate, dueDate: dueDateFor(issueDate, invoice.terms, invoice.netDays, invoice.dueDate) })
+            }
           />
-          <SelectField
-            label="Payment terms"
-            value={invoice.terms}
-            onChange={(value) => {
-              const terms = value as PaymentTerms;
-              set({ terms, dueDate: dueDateFor(invoice.issueDate, terms, invoice.dueDate) });
-            }}
-          >
-            {TERMS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </SelectField>
+          <div className="field">
+            <label htmlFor={termsId}>Payment terms</label>
+            <div className={invoice.terms === "net" ? "terms-net" : undefined}>
+              <select
+                id={termsId}
+                value={invoice.terms}
+                onChange={(e) => {
+                  if (isTerms(e.target.value)) setTerms(e.target.value);
+                }}
+              >
+                {TERMS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              {invoice.terms === "net" && (
+                <Adorned suffix="days">
+                  <input
+                    className="num"
+                    aria-label="Days until due"
+                    inputMode="numeric"
+                    placeholder={DEFAULT_NET_DAYS}
+                    value={invoice.netDays}
+                    onChange={(e) => setTerms("net", e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    onBlur={() => {
+                      if (invoice.netDays === "") setTerms("net", DEFAULT_NET_DAYS);
+                    }}
+                  />
+                </Adorned>
+              )}
+            </div>
+          </div>
           <TextField
             label="Due date"
             type="date"
@@ -137,8 +172,33 @@ export function InvoiceForm({ invoice, clients, hasTaxNumber, onChange, onForget
         </div>
       </Section>
 
-      <Section title="Items">
-        <LineItems items={invoice.items} currency={invoice.currency} taxName={taxName} onChange={(items) => set({ items })} />
+      <Section
+        title="Items"
+        aside={
+          <div className="segmented" role="radiogroup" aria-label="How items are priced">
+            {PRICING_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={invoice.pricing === o.value}
+                onClick={() => setPricing(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <LineItems
+          items={invoice.items}
+          currency={invoice.currency}
+          taxName={taxName}
+          pricing={invoice.pricing}
+          flatFee={invoice.flatFee}
+          onChange={(items) => set({ items })}
+          onFlatFeeChange={(flatFee) => set({ flatFee })}
+        />
       </Section>
 
       <Section title="Tax">
